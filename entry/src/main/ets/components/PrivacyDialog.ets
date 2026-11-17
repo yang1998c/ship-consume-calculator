@@ -64,7 +64,7 @@ export struct PrivacyGateDialog {
       .layoutWeight(1)
       .width('100%')
       .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .align(Alignment.Top)
 
       Row({ space: 10 }) {
@@ -150,7 +150,7 @@ export struct PolicyViewDialog {
       .layoutWeight(1)
       .width('100%')
       .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .align(Alignment.Top)
 
       Button('关闭')

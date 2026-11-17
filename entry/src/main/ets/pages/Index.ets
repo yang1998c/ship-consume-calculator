@@ -848,7 +848,7 @@ struct Index {
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .width('100%')
     .height('100%')
   }
@@ -968,7 +968,7 @@ struct Index {
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .width('100%')
     .height('100%')
   }
@@ -1166,7 +1166,7 @@ struct Index {
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .width('100%')
     .height('100%')
   }
@@ -1324,7 +1324,7 @@ struct Index {
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .width('100%')
     .height('100%')
   }
@@ -1434,7 +1434,7 @@ struct Index {
         }
         .scrollable(ScrollDirection.Horizontal)
         .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         .width('100%')
         .borderRadius(8)
         .border({ width: 1, color: this.palette().line })
@@ -1575,7 +1575,7 @@ struct Index {
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .width('100%')
     .height('100%')
   }
