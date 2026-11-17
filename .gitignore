@@ -22,3 +22,6 @@ build-profile.signing.local.json5
 
 # 打包产物（体积大，不入库）
 store-assets/*.app
+
+# 商店素材（仅本地，上传 AGC 用）
+store-assets/screenshots/
