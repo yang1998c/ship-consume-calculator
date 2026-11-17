@@ -1,0 +1,1843 @@
+/**
+ * 船舶能耗计算器 —— 主界面
+ * 五个页签：录入 / 航次 / 汇总 / 正午 / 明细
+ */
+import { common } from '@kit.AbilityKit';
+import { promptAction, window } from '@kit.ArkUI';
+import { DateTimeDialog } from '../components/DateTimeDialog';
+import { AboutDialog } from '../components/AboutDialog';
+import { PolicyViewDialog, PrivacyGateDialog } from '../components/PrivacyDialog';
+import { LicenseDialog } from '../components/LicenseDialog';
+import { DateTimeField, OffsetSelect, OilInput, ResultChip } from '../components/Fields';
+import {
+  computeFuel, computeNoon, computeSummary, computeVoyage, fmtClockAdj, fmtDuration, fmtHM, fmtOffset,
+  formatInZone, formatInZoneShort, formatWall, FuelResult, localOffsetMin, noonOffAt, offsetLabel,
+  recordEndOff, recordStartOff, TZ_OFFSETS, wallToMs
+} from '../model/Calc';
+import {
+  FuelRates, NoonResult, NoonSegment, NO_OFFSET, NO_TIME, ShipRecord, ShipStatus, STATUS_LIST, StatusMeta,
+  StatusTotals, VoyageInfo, VoyageResult, emptyVoyage
+} from '../model/Types';
+import { Palette, Palettes } from '../model/Theme';
+import { AppData, loadAppData, saveAppData } from '../model/Storage';
+import { buildBackup, buildCsv, fileStamp, newId, parseBackup, pickTextFile, saveTextFile } from '../model/Store';
+
+const TARGET_START: number = 0;
+const TARGET_END: number = 1;
+const TARGET_V_LA: number = 2;
+const TARGET_V_LD: number = 3;
+const TARGET_V_TA: number = 4;
+const TARGET_NOON_S: number = 5;
+const TARGET_NOON_E: number = 6;
+
+class TabDef {
+  label: string = '';
+  icon: string = '';
+  index: number = 0;
+
+  constructor(label: string, icon: string, index: number) {
+    this.label = label;
+    this.icon = icon;
+    this.index = index;
+  }
+}
+
+const TAB_DEFS: TabDef[] = [
+  new TabDef('录入', '⏱', 0),
+  new TabDef('航次', '⚓', 1),
+  new TabDef('汇总', '📊', 2),
+  new TabDef('正午', '🌞', 3),
+  new TabDef('明细', '📋', 4)
+];
+
+@Entry
+@Component
+struct Index {
+  // ---------- 数据 ----------
+  @State records: ShipRecord[] = [];
+  @State rates: FuelRates = new FuelRates();
+  @State voyage: VoyageInfo = emptyVoyage();
+  @State isDark: boolean = false;
+  /** 全屏沉浸下的避让高度（vp） */
+  @State topInset: number = 0;
+  @State bottomInset: number = 0;
+  @State curTab: number = 0;
+
+  // ---------- 录入表单 ----------
+  @State startWall: number = 0;
+  @State endWall: number = 0;
+  @State startOff: number = 480;
+  @State endOff: number = 480;
+  @State formStatus: ShipStatus = ShipStatus.Sailing;
+  @State remark: string = '';
+  @State formMsg: string = '';
+  @State formMsgOk: boolean = true;
+
+  // ---------- 数值输入（字符串态，避免光标跳动） ----------
+  @State rateTexts: string[] = ['0.80', '0.10', '0.20', '0.05', '0.10'];
+  @State oilLastArrival: string = '';
+  @State oilLastDeparture: string = '';
+  @State oilThisArrival: string = '';
+  @State oilAdded: string = '';
+  @State oilTransferred: string = '';
+
+  // ---------- 正午 ----------
+  @State noonStart: number = NO_TIME;
+  @State noonEnd: number = NO_TIME;
+  @State noonRes: NoonResult = new NoonResult();
+
+  // ---------- 对话框 ----------
+  @State dlgWall: number = 0;
+  @State dlgTarget: number = TARGET_START;
+  dialogController: CustomDialogController = new CustomDialogController({
+    builder: DateTimeDialog({
+      wall: $dlgWall,
+      isDark: $isDark,
+      onConfirm: (v: number) => {
+        this.applyPicked(v);
+      }
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center,
+    customStyle: true
+  });
+
+  privacyController: CustomDialogController = new CustomDialogController({
+    builder: PrivacyGateDialog({
+      isDark: $isDark,
+      onAgree: () => {
+        this.privacyAgreed = true;
+        this.persist();
+        this.privacyController.close();
+      },
+      onReject: () => {
+        const c = this.getUIContext().getHostContext() as common.UIAbilityContext;
+        c.terminateSelf();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: true
+  });
+
+  policyController: CustomDialogController = new CustomDialogController({
+    builder: PolicyViewDialog({
+      isDark: $isDark
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center,
+    customStyle: true
+  });
+
+  licenseController: CustomDialogController = new CustomDialogController({
+    builder: LicenseDialog({
+      isDark: $isDark
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center,
+    customStyle: true
+  });
+
+  aboutController: CustomDialogController = new CustomDialogController({
+    builder: AboutDialog({
+      isDark: $isDark,
+      onShowPolicy: () => {
+        this.aboutController.close();
+        this.policyController.open();
+      },
+      onShowLicense: () => {
+        this.aboutController.close();
+        this.licenseController.open();
+      }
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center,
+    customStyle: true
+  });
+
+  private privacyAgreed: boolean = false;
+  private privacyPrompted: boolean = false;
+  private ctx: common.UIAbilityContext | null = null;
+  private tabsController: TabsController = new TabsController();
+
+  // ---------- 生命周期 ----------
+
+  aboutToAppear(): void {
+    this.ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    let data = new AppData();
+    try {
+      data = loadAppData(this.ctx);
+    } catch (e) {
+      data = new AppData();
+    }
+    this.records = data.records;
+    this.rates = data.rates;
+    this.voyage = data.voyage;
+    this.noonStart = data.noonStart;
+    this.noonEnd = data.noonEnd;
+    this.isDark = data.dark;
+    this.privacyAgreed = data.privacyAgreed;
+
+    this.rateTexts = [
+      '' + this.rates.sailing, '' + this.rates.anchorage, '' + this.rates.drifting,
+      '' + this.rates.berthing, '' + this.rates.buoy
+    ];
+    this.oilLastArrival = this.oilText(this.voyage.oilLastArrival);
+    this.oilLastDeparture = this.oilText(this.voyage.oilLastDeparture);
+    this.oilThisArrival = this.oilText(this.voyage.oilThisArrival);
+    this.oilAdded = this.oilText(this.voyage.oilAdded);
+    this.oilTransferred = this.oilText(this.voyage.oilTransferred);
+
+    if (this.startWall === 0) {
+      const n = new Date();
+      const base = wallToMs(n.getFullYear(), n.getMonth() + 1, n.getDate(),
+        n.getHours(), n.getMinutes(), 0);
+      this.startWall = base;
+      this.endWall = base + 3600000;
+      const off = localOffsetMin(Date.now());
+      this.startOff = off;
+      this.endOff = off;
+    }
+    this.refreshNoon();
+    this.setupImmersive();
+  }
+
+  /** 全屏沉浸：系统栏透明、内容延伸到状态栏与手势条之下 */
+  private async setupImmersive(): Promise<void> {
+    if (this.ctx === null) {
+      return;
+    }
+    try {
+      const win = await window.getLastWindow(this.ctx);
+      await win.setWindowLayoutFullScreen(true);
+      await win.setWindowSystemBarProperties({
+        statusBarContentColor: '#FFFFFF',
+        navigationBarContentColor: this.isDark ? '#FFFFFF' : '#000000'
+      });
+      const topArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      const bottomArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
+      const uiCtx = this.getUIContext();
+      this.topInset = uiCtx.px2vp(topArea.topRect.height);
+      this.bottomInset = uiCtx.px2vp(bottomArea.bottomRect.height);
+    } catch (e) {
+      this.topInset = 0;
+      this.bottomInset = 0;
+    }
+  }
+
+  onPageShow(): void {
+    // 首帧之后再弹，避免窗口未就绪导致异常
+    if (!this.privacyAgreed && !this.privacyPrompted) {
+      this.privacyPrompted = true;
+      setTimeout(() => {
+        this.privacyController.open();
+      }, 350);
+    }
+  }
+
+  private palette(): Palette {
+    return this.isDark ? Palettes.DARK : Palettes.LIGHT;
+  }
+
+  private oilText(v: number): string {
+    return v >= 0 ? '' + v : '';
+  }
+
+  private persist(): void {
+    if (this.ctx === null) {
+      return;
+    }
+    const data = new AppData();
+    data.records = this.records;
+    data.rates = this.rates;
+    data.voyage = this.voyage;
+    data.noonStart = this.noonStart;
+    data.noonEnd = this.noonEnd;
+    data.dark = this.isDark;
+    data.privacyAgreed = this.privacyAgreed;
+    try {
+      saveAppData(this.ctx, data);
+    } catch (e) {
+      // 存储失败不阻断交互
+    }
+  }
+
+  private toast(msg: string): void {
+    promptAction.showToast({ message: msg, duration: 2200 });
+  }
+
+  // ---------- 选择器 ----------
+
+  /** 当前时刻的船钟墙钟毫秒（本地字段按 UTC 锚定） */
+  private nowWall(): number {
+    const n = new Date();
+    return wallToMs(n.getFullYear(), n.getMonth() + 1, n.getDate(),
+      n.getHours(), n.getMinutes(), n.getSeconds());
+  }
+
+  private openPicker(target: number, current: number): void {
+    this.dlgTarget = target;
+    this.dlgWall = current === NO_TIME ? this.nowWall() : current;
+    this.dialogController.open();
+  }
+
+  private applyPicked(v: number): void {
+    if (this.dlgTarget === TARGET_START) {
+      this.startWall = v;
+    } else if (this.dlgTarget === TARGET_END) {
+      this.endWall = v;
+    } else if (this.dlgTarget === TARGET_NOON_S) {
+      this.noonStart = v;
+      this.refreshNoon();
+      this.persist();
+    } else if (this.dlgTarget === TARGET_NOON_E) {
+      this.noonEnd = v;
+      this.refreshNoon();
+      this.persist();
+    } else {
+      this.setVoyageTime(v, this.dlgTarget);
+    }
+  }
+
+  private setVoyageTime(wall: number, target: number): void {
+    const v: VoyageInfo = {
+      name: this.voyage.name,
+      lastArrival: this.voyage.lastArrival,
+      lastDeparture: this.voyage.lastDeparture,
+      thisArrival: this.voyage.thisArrival,
+      oilLastArrival: this.voyage.oilLastArrival,
+      oilLastDeparture: this.voyage.oilLastDeparture,
+      oilThisArrival: this.voyage.oilThisArrival,
+      oilAdded: this.voyage.oilAdded,
+      oilTransferred: this.voyage.oilTransferred
+    };
+    if (target === TARGET_V_LA) {
+      v.lastArrival = wall;
+    } else if (target === TARGET_V_LD) {
+      v.lastDeparture = wall;
+    } else if (target === TARGET_V_TA) {
+      v.thisArrival = wall;
+    }
+    this.voyage = v;
+    this.persist();
+  }
+
+  private clearVoyageTime(target: number): void {
+    this.setVoyageTime(NO_TIME, target);
+  }
+
+  // ---------- 录入 ----------
+
+  private addRecord(): void {
+    if (this.endWall <= this.startWall && this.startOff === this.endOff) {
+      this.formMsg = '结束时间必须晚于开始时间';
+      this.formMsgOk = false;
+      return;
+    }
+    const start: number = this.startWall - this.startOff * 60000;
+    const end: number = this.endWall - this.endOff * 60000;
+    if (end <= start) {
+      const hint: string = this.startOff !== this.endOff
+        ? `（已按时区换算：${fmtOffset(this.startOff)} → ${fmtOffset(this.endOff)}，请检查墙钟时间与所选时区）`
+        : '';
+      this.formMsg = '结束时间必须晚于开始时间' + hint;
+      this.formMsgOk = false;
+      return;
+    }
+    const rec: ShipRecord = {
+      id: newId(),
+      start: start,
+      end: end,
+      status: this.formStatus,
+      remark: this.remark.trim(),
+      so: this.startOff,
+      eo: this.endOff
+    };
+    this.records = this.records.concat([rec]);
+    let msg: string = `已添加：${this.statusName(this.formStatus)} ${fmtDuration(end - start).text}`;
+    if (this.startOff !== this.endOff) {
+      const wallMs: number = this.endWall - this.startWall;
+      const deltaMin: number = this.endOff - this.startOff;
+      msg += `（墙钟 ${fmtHM(wallMs)}，拨钟 ${fmtClockAdj(deltaMin)}）`;
+    }
+    this.formMsg = msg;
+    this.formMsgOk = true;
+    this.remark = '';
+    // 连续录入：上一段结束自动成为下一段开始
+    this.startWall = this.endWall;
+    this.startOff = this.endOff;
+    this.refreshNoon();
+    this.persist();
+  }
+
+  private deleteRecord(id: string): void {
+    const next: ShipRecord[] = [];
+    for (let i: number = 0; i < this.records.length; i++) {
+      if (this.records[i].id !== id) {
+        next.push(this.records[i]);
+      }
+    }
+    this.records = next;
+    this.refreshNoon();
+    this.persist();
+  }
+
+  private clearRecords(): void {
+    if (this.records.length === 0) {
+      return;
+    }
+    AlertDialog.show({
+      title: '清空时间区间',
+      message: `确定要清空全部 ${this.records.length} 条时间区间吗？此操作不可恢复。`,
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确定清空',
+        fontColor: this.palette().danger,
+        action: () => {
+          this.records = [];
+          this.refreshNoon();
+          this.persist();
+          this.toast('已清空全部时间区间');
+        }
+      }
+    });
+  }
+
+  private resetAll(): void {
+    let rateText: string = '';
+    for (let i: number = 0; i < STATUS_LIST.length; i++) {
+      if (rateText.length > 0) {
+        rateText += ' / ';
+      }
+      rateText += STATUS_LIST[i].name + this.rates.get(STATUS_LIST[i].key).toFixed(2);
+    }
+    AlertDialog.show({
+      title: '一键重置',
+      message: '此操作不可恢复：清空全部时间区间、航次与存油数据、正午查询时间，' +
+        `油耗率恢复缺省（${rateText} 吨/小时）。建议先保存备份。`,
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确定重置',
+        fontColor: this.palette().danger,
+        action: () => {
+          this.records = [];
+          this.rates = new FuelRates();
+          this.rateTexts = ['0.8', '0.1', '0.2', '0.05', '0.1'];
+          this.voyage = emptyVoyage();
+          this.oilLastArrival = '';
+          this.oilLastDeparture = '';
+          this.oilThisArrival = '';
+          this.oilAdded = '';
+          this.oilTransferred = '';
+          this.noonStart = NO_TIME;
+          this.noonEnd = NO_TIME;
+          const n = new Date();
+          const base = wallToMs(n.getFullYear(), n.getMonth() + 1, n.getDate(),
+            n.getHours(), n.getMinutes(), 0);
+          this.startWall = base;
+          this.endWall = base + 3600000;
+          this.startOff = localOffsetMin(Date.now());
+          this.endOff = this.startOff;
+          this.formStatus = ShipStatus.Sailing;
+          this.remark = '';
+          this.formMsg = '';
+          this.refreshNoon();
+          this.persist();
+          this.toast('已重置为缺省状态');
+        }
+      }
+    });
+  }
+
+  // ---------- 正午 ----------
+
+  private refreshNoon(): void {
+    this.noonRes = computeNoon(this.noonStart, this.noonEnd, this.records);
+  }
+
+  private fillNoonFromRecords(): void {
+    if (this.records.length === 0) {
+      this.toast('暂无时间区间，请先录入记录');
+      return;
+    }
+    let mn: number = Infinity;
+    let mx: number = -Infinity;
+    for (let i: number = 0; i < this.records.length; i++) {
+      const r = this.records[i];
+      if (r.start < mn) {
+        mn = r.start;
+      }
+      if (r.end > mx) {
+        mx = r.end;
+      }
+    }
+    this.noonStart = mn + noonOffAt(mn, this.records) * 60000;
+    this.noonEnd = mx + noonOffAt(mx, this.records) * 60000;
+    this.refreshNoon();
+    this.persist();
+  }
+
+  // ---------- 数据操作 ----------
+
+  private async doBackup(): Promise<void> {
+    if (this.ctx === null) {
+      return;
+    }
+    try {
+      const content: string = buildBackup(this.records, this.rates, this.voyage);
+      const uri: string = await saveTextFile(this.ctx, `船舶能耗备份-${fileStamp()}.json`, content);
+      if (uri.length > 0) {
+        this.toast(`备份文件已保存（共 ${this.records.length} 条时间区间）`);
+      }
+    } catch (e) {
+      this.toast('保存备份失败');
+    }
+  }
+
+  private async doRestore(): Promise<void> {
+    if (this.ctx === null) {
+      return;
+    }
+    try {
+      const text: string = await pickTextFile(this.ctx, '.json');
+      if (text.length === 0) {
+        return;
+      }
+      const res = parseBackup(text);
+      if (!res.ok) {
+        this.toast(res.message);
+        return;
+      }
+      AlertDialog.show({
+        title: '恢复备份',
+        message: `恢复备份将替换当前全部 ${this.records.length} 条时间区间和航次信息，确定继续？`,
+        primaryButton: {
+          value: '取消',
+          action: () => {
+          }
+        },
+        secondaryButton: {
+          value: '确定恢复',
+          action: () => {
+            this.records = res.records;
+            this.rates = res.rates;
+            this.voyage = res.voyage;
+            this.rateTexts = [
+              '' + res.rates.sailing, '' + res.rates.anchorage, '' + res.rates.drifting,
+              '' + res.rates.berthing, '' + res.rates.buoy
+            ];
+            this.oilLastArrival = this.oilText(res.voyage.oilLastArrival);
+            this.oilLastDeparture = this.oilText(res.voyage.oilLastDeparture);
+            this.oilThisArrival = this.oilText(res.voyage.oilThisArrival);
+            this.oilAdded = this.oilText(res.voyage.oilAdded);
+            this.oilTransferred = this.oilText(res.voyage.oilTransferred);
+            this.refreshNoon();
+            this.persist();
+            this.toast(res.message);
+          }
+        }
+      });
+    } catch (e) {
+      this.toast('读取备份文件失败');
+    }
+  }
+
+  private async doExportCsv(): Promise<void> {
+    if (this.ctx === null) {
+      return;
+    }
+    try {
+      const csv: string = buildCsv(this.records, (s: ShipStatus) => this.statusName(s));
+      const uri: string = await saveTextFile(this.ctx, `船舶能耗统计-${fileStamp()}.csv`, csv);
+      if (uri.length > 0) {
+        this.toast(`已导出 ${this.records.length} 条时间区间（CSV）`);
+      }
+    } catch (e) {
+      this.toast('导出失败');
+    }
+  }
+
+  // ---------- 计算入口 ----------
+
+  private statusName(s: ShipStatus): string {
+    for (let i: number = 0; i < STATUS_LIST.length; i++) {
+      if (STATUS_LIST[i].key === s) {
+        return STATUS_LIST[i].name;
+      }
+    }
+    return '航行';
+  }
+
+  private totals(): StatusTotals {
+    return computeSummary(this.records);
+  }
+
+  private fuelResult(): FuelResult {
+    return computeFuel(this.totals(), this.rates);
+  }
+
+  private voyageResult(): VoyageResult {
+    return computeVoyage(this.records, this.voyage);
+  }
+
+  private onRateChange(index: number, text: string): void {
+    const next: string[] = this.rateTexts.slice();
+    next[index] = text;
+    this.rateTexts = next;
+    const n: number = text.trim().length === 0 ? 0 : Number(text);
+    const r: FuelRates = this.rates.clone();
+    r.set(STATUS_LIST[index].key, Number.isNaN(n) ? 0 : n);
+    this.rates = r;
+    this.persist();
+  }
+
+  private onOilChange(field: number, text: string): void {
+    if (field === 0) {
+      this.oilLastArrival = text;
+    } else if (field === 1) {
+      this.oilLastDeparture = text;
+    } else if (field === 2) {
+      this.oilThisArrival = text;
+    } else if (field === 3) {
+      this.oilAdded = text;
+    } else {
+      this.oilTransferred = text;
+    }
+    const v: VoyageInfo = {
+      name: this.voyage.name,
+      lastArrival: this.voyage.lastArrival,
+      lastDeparture: this.voyage.lastDeparture,
+      thisArrival: this.voyage.thisArrival,
+      oilLastArrival: this.parseNum(this.oilLastArrival),
+      oilLastDeparture: this.parseNum(this.oilLastDeparture),
+      oilThisArrival: this.parseNum(this.oilThisArrival),
+      oilAdded: this.parseNum(this.oilAdded),
+      oilTransferred: this.parseNum(this.oilTransferred)
+    };
+    this.voyage = v;
+    this.persist();
+  }
+
+  private parseNum(text: string): number {
+    const t: string = text.trim();
+    if (t.length === 0) {
+      return -1;
+    }
+    const n: number = Number(t);
+    return Number.isNaN(n) ? -1 : n;
+  }
+
+  // ---------- 通用 UI 片段 ----------
+
+  @Builder
+  sectionHeader(no: string, title: string, kicker: string) {
+    Row({ space: 8 }) {
+      Text(no)
+        .fontSize(11)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.palette().onAccent)
+        .backgroundColor(this.palette().accent)
+        .borderRadius(6)
+        .width(24)
+        .height(20)
+        .textAlign(TextAlign.Center)
+      Text(title)
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.palette().heading)
+        .layoutWeight(1)
+      Text(kicker)
+        .fontSize(9)
+        .fontColor(this.palette().muted)
+        .letterSpacing(0.6)
+        .textCase(TextCase.UpperCase)
+    }
+    .width('100%')
+    .margin({ bottom: 10 })
+  }
+
+  @Builder
+  fieldLabel(text: string) {
+    Text(text)
+      .fontSize(12)
+      .fontColor(this.palette().muted)
+      .margin({ bottom: 5 })
+  }
+
+  @Builder
+  statusChip(meta: StatusMeta) {
+    Text(meta.name)
+      .fontSize(13)
+      .fontWeight(this.formStatus === meta.key ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(this.formStatus === meta.key ? this.palette().onAccent : this.palette().statusInk(meta.key))
+      .backgroundColor(this.formStatus === meta.key
+        ? this.palette().statusColor(meta.key)
+        : this.palette().statusSoft(meta.key))
+      .borderRadius(9)
+      .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+      .margin({ right: 8, bottom: 8 })
+      .onClick(() => {
+        this.formStatus = meta.key;
+      })
+  }
+
+  @Builder
+  primaryButton(label: string, action: () => void) {
+    Button(label)
+      .fontSize(15)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(this.palette().onAccent)
+      .backgroundColor(this.palette().accent)
+      .borderRadius(10)
+      .height(44)
+      .width('100%')
+      .onClick(action)
+  }
+
+  @Builder
+  outlineButton(label: string, action: () => void) {
+    Button(label)
+      .fontSize(13)
+      .fontColor(this.palette().text)
+      .backgroundColor(Color.Transparent)
+      .border({ width: 1, color: this.palette().outlineBorder })
+      .borderRadius(9)
+      .height(38)
+      .layoutWeight(1)
+      .onClick(action)
+  }
+
+  @Builder
+  ghostButton(label: string, action: () => void) {
+    Button(label)
+      .fontSize(13)
+      .fontColor(this.palette().danger)
+      .backgroundColor(Color.Transparent)
+      .border({ width: 1, color: this.palette().dangerBorder })
+      .borderRadius(9)
+      .height(38)
+      .layoutWeight(1)
+      .onClick(action)
+  }
+
+  // ---------- 页签 1：录入 ----------
+
+  @Builder
+  entryTab() {
+    Scroll() {
+      Column({ space: 12 }) {
+        Column() {
+          this.sectionHeader('01', '添加时间区间', 'Log Entry')
+
+          Column({ space: 12 }) {
+            Column() {
+              this.fieldLabel('开始时间（当地船钟）')
+              DateTimeField({ wall: this.startWall, isDark: this.isDark, weighted: false, onTap: () => { this.openPicker(TARGET_START, this.startWall); } })
+              Row() {
+                Text('船钟时区')
+                  .fontSize(11)
+                  .fontColor(this.palette().muted)
+                  .layoutWeight(1)
+                OffsetSelect({ off: this.startOff, isDark: this.isDark, onPick: (i: number) => { this.startOff = TZ_OFFSETS[i]; } })
+              }
+              .width('100%')
+              .margin({ top: 6 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Column() {
+              this.fieldLabel('结束时间（当地船钟）')
+              DateTimeField({ wall: this.endWall, isDark: this.isDark, weighted: false, onTap: () => { this.openPicker(TARGET_END, this.endWall); } })
+              Row() {
+                Text('船钟时区')
+                  .fontSize(11)
+                  .fontColor(this.palette().muted)
+                  .layoutWeight(1)
+                OffsetSelect({ off: this.endOff, isDark: this.isDark, onPick: (i: number) => { this.endOff = TZ_OFFSETS[i]; } })
+              }
+              .width('100%')
+              .margin({ top: 6 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Column() {
+              this.fieldLabel('船舶状态')
+              Flex({ wrap: FlexWrap.Wrap }) {
+                ForEach(STATUS_LIST, (meta: StatusMeta) => {
+                  this.statusChip(meta)
+                }, (meta: StatusMeta) => meta.key)
+              }
+              .width('100%')
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Column() {
+              this.fieldLabel('备注（可选）')
+              TextInput({ text: this.remark, placeholder: '如：上海→宁波' })
+                .fontSize(15)
+                .fontColor(this.palette().heading)
+                .placeholderColor(this.palette().muted)
+                .backgroundColor(this.palette().inputBg)
+                .borderRadius(10)
+                .border({ width: 1, color: this.palette().line })
+                .height(44)
+                .onChange((v: string) => {
+                  this.remark = v;
+                })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            this.primaryButton('＋ 添加区间', () => {
+              this.addRecord();
+            })
+
+            if (this.formMsg.length > 0) {
+              Text(this.formMsg)
+                .fontSize(12)
+                .fontColor(this.formMsgOk ? this.palette().ok : this.palette().danger)
+                .width('100%')
+            }
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+
+        Column() {
+          this.sectionHeader('02', '最近录入', 'Recent')
+          if (this.records.length === 0) {
+            Text('暂无时间区间，录入第一段记录后统计与油耗将自动更新')
+              .fontSize(12)
+              .fontColor(this.palette().muted)
+              .width('100%')
+          } else {
+            ForEach(this.recentRecords(), (rec: ShipRecord) => {
+              this.recordRow(rec, -1)
+            }, (rec: ShipRecord) => rec.id)
+          }
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .constraintSize({ minHeight: '100%' })
+    }
+    .scrollBar(BarState.Off)
+    .width('100%')
+    .height('100%')
+  }
+
+  private recentRecords(): ShipRecord[] {
+    const sorted: ShipRecord[] = this.records.slice();
+    sorted.sort((a: ShipRecord, b: ShipRecord) => b.start - a.start);
+    return sorted.slice(0, 3);
+  }
+
+  // ---------- 页签 2：航次 ----------
+
+  @Builder
+  voyageTab() {
+    Scroll() {
+      Column({ space: 12 }) {
+        Column() {
+          this.sectionHeader('01', '航次时间节点', 'Voyage')
+          Column({ space: 12 }) {
+            Column() {
+              this.fieldLabel('上次抵港时间')
+              Row({ space: 6 }) {
+                DateTimeField({ wall: this.voyage.lastArrival, isDark: this.isDark, weighted: true, onTap: () => { this.openPicker(TARGET_V_LA, this.voyage.lastArrival); } })
+                Text('✕')
+                  .fontSize(12)
+                  .fontColor(this.palette().muted)
+                  .padding(6)
+                  .onClick(() => {
+                    this.clearVoyageTime(TARGET_V_LA);
+                  })
+              }
+              .width('100%')
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Column() {
+              this.fieldLabel('上次离港时间')
+              Row({ space: 6 }) {
+                DateTimeField({ wall: this.voyage.lastDeparture, isDark: this.isDark, weighted: true, onTap: () => { this.openPicker(TARGET_V_LD, this.voyage.lastDeparture); } })
+                Text('✕')
+                  .fontSize(12)
+                  .fontColor(this.palette().muted)
+                  .padding(6)
+                  .onClick(() => {
+                    this.clearVoyageTime(TARGET_V_LD);
+                  })
+              }
+              .width('100%')
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Column() {
+              this.fieldLabel('本次抵港时间')
+              Row({ space: 6 }) {
+                DateTimeField({ wall: this.voyage.thisArrival, isDark: this.isDark, weighted: true, onTap: () => { this.openPicker(TARGET_V_TA, this.voyage.thisArrival); } })
+                Text('✕')
+                  .fontSize(12)
+                  .fontColor(this.palette().muted)
+                  .padding(6)
+                  .onClick(() => {
+                    this.clearVoyageTime(TARGET_V_TA);
+                  })
+              }
+              .width('100%')
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+
+        Column() {
+          this.sectionHeader('02', '存油数据（吨）', 'Fuel Stock')
+          Column({ space: 10 }) {
+            OilInput({ label: '上次抵港存油', value: this.oilLastArrival, isDark: this.isDark, onInput: (v: string) => { this.onOilChange(0, v); } })
+            OilInput({ label: '上次离港存油', value: this.oilLastDeparture, isDark: this.isDark, onInput: (v: string) => { this.onOilChange(1, v); } })
+            OilInput({ label: '本次抵港存油', value: this.oilThisArrival, isDark: this.isDark, onInput: (v: string) => { this.onOilChange(2, v); } })
+            OilInput({ label: '燃油添加量', value: this.oilAdded, isDark: this.isDark, onInput: (v: string) => { this.onOilChange(3, v); } })
+            OilInput({ label: '燃油驳出量', value: this.oilTransferred, isDark: this.isDark, onInput: (v: string) => { this.onOilChange(4, v); } })
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+
+        Column() {
+          this.sectionHeader('03', '核算结果', 'Result')
+          this.voyageResultView()
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .constraintSize({ minHeight: '100%' })
+    }
+    .scrollBar(BarState.Off)
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  voyageResultView() {
+    Column({ space: 10 }) {
+      Row({ space: 8 }) {
+        ResultChip({ label: '航行时间', ms: this.voyageResult().sailMs, isDark: this.isDark })
+        ResultChip({ label: '营运时间', ms: this.voyageResult().opMs, isDark: this.isDark })
+        ResultChip({ label: '上一港在港', ms: this.voyageResult().portMs, isDark: this.isDark })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Top)
+
+      Row() {
+        Column({ space: 2 }) {
+          Text('燃油实际消耗')
+            .fontSize(11)
+            .fontColor(this.palette().fuelText)
+          Row({ space: 3 }) {
+            Text(this.voyageResult().fuelReady ? this.voyageResult().fuel.toFixed(3) : '—')
+              .fontSize(22)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.palette().fuelText)
+            Text('吨')
+              .fontSize(10)
+              .fontColor(this.palette().fuelText)
+              .margin({ bottom: 4 })
+          }
+          .alignItems(VerticalAlign.Bottom)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        Column({ space: 2 }) {
+          Text('窗口内已覆盖')
+            .fontSize(11)
+            .fontColor(this.palette().muted)
+          Text(`${this.voyageResult().matched} 条 · ${fmtHM(this.voyageResult().coveredMs)}`)
+            .fontSize(12)
+            .fontColor(this.palette().text)
+        }
+        .alignItems(HorizontalAlign.End)
+      }
+      .width('100%')
+      .padding(10)
+      .backgroundColor(this.palette().fuelBg)
+      .borderRadius(10)
+      .border({ width: 1, color: this.palette().fuelBorder })
+
+      if (this.voyageResult().ok) {
+        Column({ space: 5 }) {
+          ForEach(STATUS_LIST, (meta: StatusMeta) => {
+            Row() {
+              Text(meta.name)
+                .fontSize(12)
+                .fontColor(this.palette().statusInk(meta.key))
+                .layoutWeight(1)
+              Text(`${fmtHM(this.voyageResult().sums.get(meta.key))} · ${(this.voyageResult().sums.get(meta.key) / 3600000).toFixed(2)} h`)
+                .fontSize(12)
+                .fontColor(this.palette().text)
+            }
+            .width('100%')
+          }, (meta: StatusMeta) => meta.key)
+        }
+        .width('100%')
+        .padding(10)
+        .backgroundColor(this.palette().subtle)
+        .borderRadius(10)
+      }
+
+      ForEach(this.voyageResult().warns, (w: string) => {
+        Text('⚠ ' + w)
+          .fontSize(11)
+          .fontColor(this.palette().danger)
+          .width('100%')
+      }, (w: string) => w)
+    }
+    .width('100%')
+  }
+
+  // ---------- 页签 3：汇总 ----------
+
+  @Builder
+  summaryTab() {
+    Scroll() {
+      Column({ space: 12 }) {
+        Column() {
+          this.sectionHeader('01', '时间汇总', 'Time Summary')
+          Column({ space: 10 }) {
+            Flex({ wrap: FlexWrap.Wrap }) {
+              ForEach(STATUS_LIST, (meta: StatusMeta) => {
+                this.statCard(meta)
+              }, (meta: StatusMeta) => meta.key)
+            }
+            .width('100%')
+
+            Divider().color(this.palette().line)
+
+            Row() {
+              Text(`区间总数 ${this.records.length} 条`)
+                .fontSize(12)
+                .fontColor(this.palette().muted)
+                .layoutWeight(1)
+              Text(`全部合计 ${fmtDuration(this.totals().total()).totalHours.toFixed(2)} 小时`)
+                .fontSize(12)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.palette().heading)
+            }
+            .width('100%')
+
+            Text(`${fmtHM(this.totals().total())}（hh:mm） · ${fmtDuration(this.totals().total()).text}`)
+              .fontSize(11)
+              .fontColor(this.palette().muted)
+              .width('100%')
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+
+        Column() {
+          this.sectionHeader('02', '能耗参数设置', 'Fuel Rate')
+          Column({ space: 10 }) {
+            ForEach(STATUS_LIST, (meta: StatusMeta) => {
+              Row({ space: 10 }) {
+                Text(meta.name + '油耗率')
+                  .fontSize(13)
+                  .fontColor(this.palette().statusInk(meta.key))
+                  .layoutWeight(1)
+                TextInput({ text: this.rateTexts[this.statusIndex(meta.key)], placeholder: '0.00' })
+                  .type(InputType.NUMBER_DECIMAL)
+                  .fontSize(15)
+                  .fontColor(this.palette().fuelText)
+                  .placeholderColor(this.palette().muted)
+                  .backgroundColor(this.palette().fuelBg)
+                  .borderRadius(9)
+                  .border({ width: 1, color: this.palette().fuelBorder })
+                  .height(40)
+                  .width(100)
+                  .textAlign(TextAlign.End)
+                  .onChange((v: string) => {
+                    this.onRateChange(this.statusIndex(meta.key), v);
+                  })
+                Text('吨/时')
+                  .fontSize(10)
+                  .fontColor(this.palette().muted)
+              }
+              .width('100%')
+            }, (meta: StatusMeta) => meta.key)
+
+            Column({ space: 4 }) {
+              Row() {
+                Text('预计总能耗')
+                  .fontSize(13)
+                  .fontColor(this.palette().fuelText)
+                  .layoutWeight(1)
+                Text(`${this.fuelResult().total.toFixed(3)} 吨`)
+                  .fontSize(20)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.palette().fuelText)
+              }
+              .width('100%')
+              Text(this.fuelBreakdown())
+                .fontSize(10)
+                .fontColor(this.palette().fuelText)
+                .width('100%')
+            }
+            .width('100%')
+            .padding(10)
+            .backgroundColor(this.palette().fuelBg)
+            .borderRadius(10)
+            .border({ width: 1, color: this.palette().fuelBorder })
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .constraintSize({ minHeight: '100%' })
+    }
+    .scrollBar(BarState.Off)
+    .width('100%')
+    .height('100%')
+  }
+
+  private statusIndex(key: ShipStatus): number {
+    for (let i: number = 0; i < STATUS_LIST.length; i++) {
+      if (STATUS_LIST[i].key === key) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  private fuelBreakdown(): string {
+    const rows: string[] = [];
+    for (let i: number = 0; i < this.fuelResult().rows.length; i++) {
+      const r = this.fuelResult().rows[i];
+      rows.push(`${r.name} ${r.fuel.toFixed(3)} 吨`);
+    }
+    return rows.join('　|　');
+  }
+
+  @Builder
+  statCard(meta: StatusMeta) {
+    Column({ space: 3 }) {
+      Row() {
+        Text(meta.name)
+          .fontSize(12)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.palette().statusInk(meta.key))
+          .layoutWeight(1)
+        Text(fmtHM(this.totals().get(meta.key)))
+          .fontSize(10)
+          .fontColor(this.palette().muted)
+      }
+      .width('100%')
+
+      Row({ space: 3 }) {
+        Text(fmtDuration(this.totals().get(meta.key)).totalHours.toFixed(2))
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.palette().heading)
+        Text('小时')
+          .fontSize(10)
+          .fontColor(this.palette().muted)
+          .margin({ bottom: 4 })
+      }
+      .alignItems(VerticalAlign.Bottom)
+
+      Text(fmtDuration(this.totals().get(meta.key)).text)
+        .fontSize(10)
+        .fontColor(this.palette().muted)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Stack({ alignContent: Alignment.Start }) {
+        Row()
+          .width('100%')
+          .height(4)
+          .backgroundColor(this.palette().subtle)
+          .borderRadius(2)
+        Row()
+          .width(this.barWidth(this.totals().get(meta.key), this.totals().total()))
+          .height(4)
+          .backgroundColor(this.palette().statusColor(meta.key))
+          .borderRadius(2)
+      }
+      .width('100%')
+      .height(4)
+      .margin({ top: 3 })
+    }
+    .width('46%')
+    .margin({ right: 6, bottom: 6 })
+    .padding(10)
+    .backgroundColor(this.palette().statusSoft(meta.key))
+    .borderRadius(10)
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  private barWidth(ms: number, grand: number): string {
+    if (grand <= 0) {
+      return '0%';
+    }
+    const pct: number = ms / grand * 100;
+    return pct.toFixed(1) + '%';
+  }
+
+  // ---------- 页签 4：正午 ----------
+
+  @Builder
+  noonTab() {
+    Scroll() {
+      Column({ space: 12 }) {
+        Column() {
+          this.sectionHeader('01', '统计区间（船钟）', 'Noon Range')
+          Column({ space: 12 }) {
+            Column() {
+              this.fieldLabel('统计起始时间')
+              DateTimeField({ wall: this.noonStart, isDark: this.isDark, weighted: false, onTap: () => { this.openPicker(TARGET_NOON_S, this.noonStart); } })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Column() {
+              this.fieldLabel('统计结束时间')
+              DateTimeField({ wall: this.noonEnd, isDark: this.isDark, weighted: false, onTap: () => { this.openPicker(TARGET_NOON_E, this.noonEnd); } })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .width('100%')
+
+            Row({ space: 8 }) {
+              this.outlineButton('按记录填充', () => {
+                this.fillNoonFromRecords();
+              })
+              this.outlineButton('清空', () => {
+                this.noonStart = NO_TIME;
+                this.noonEnd = NO_TIME;
+                this.refreshNoon();
+                this.persist();
+              })
+            }
+            .width('100%')
+
+            Text('以船钟每天 12:00 为分割点自动切段，跨时区拨钟按记录的船钟偏移推算（拨钟日段长 23/25 小时）')
+              .fontSize(10)
+              .fontColor(this.palette().muted)
+              .width('100%')
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+
+        Column() {
+          this.sectionHeader('02', '正午分段时长', 'Noon Breakdown')
+          this.noonTableView()
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .constraintSize({ minHeight: '100%' })
+    }
+    .scrollBar(BarState.Off)
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  noonTableView() {
+    Column({ space: 8 }) {
+      if (!this.noonRes.valid) {
+        Text(this.noonRes.message)
+          .fontSize(12)
+          .fontColor(this.palette().muted)
+          .width('100%')
+      } else {
+        Scroll() {
+          Column() {
+            Row() {
+              this.noonTh('#', 32)
+              this.noonTh('分段（船钟 12:00 切分）', 150)
+              ForEach(STATUS_LIST, (meta: StatusMeta) => {
+                this.noonTh(meta.name, 56)
+              }, (meta: StatusMeta) => meta.key)
+              this.noonTh('段内合计', 60)
+              this.noonTh('未覆盖/重叠', 76)
+            }
+            .backgroundColor(this.palette().subtle)
+
+            ForEach(this.noonRes.segments, (seg: NoonSegment, i: number) => {
+              Row() {
+                Text('' + (i + 1))
+                  .fontSize(11)
+                  .fontColor(this.palette().muted)
+                  .width(32)
+                  .textAlign(TextAlign.Center)
+                Column({ space: 1 }) {
+                  Text(`${formatInZoneShort(seg.startAbs, seg.startOff)} → ${formatInZoneShort(seg.endAbs, seg.endOff)}`)
+                    .fontSize(10)
+                    .fontColor(this.palette().heading)
+                  Text(this.segLenText(seg))
+                    .fontSize(9)
+                    .fontColor(this.palette().muted)
+                }
+                .width(150)
+                .alignItems(HorizontalAlign.Start)
+                .padding({ left: 4 })
+
+                ForEach(STATUS_LIST, (meta: StatusMeta) => {
+                  Text(seg.sums.get(meta.key) > 0 ? fmtHM(seg.sums.get(meta.key)) : '—')
+                    .fontSize(11)
+                    .fontColor(seg.sums.get(meta.key) > 0 ? this.palette().text : this.palette().muted)
+                    .width(56)
+                    .textAlign(TextAlign.Center)
+                }, (meta: StatusMeta) => meta.key)
+
+                Text(fmtHM(seg.coveredMs))
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.palette().heading)
+                  .width(60)
+                  .textAlign(TextAlign.Center)
+
+                Text(this.gapText(seg.gapMs))
+                  .fontSize(10)
+                  .fontColor(seg.gapMs > 1000
+                    ? this.palette().signal
+                    : (seg.gapMs < -1000 ? this.palette().danger : this.palette().muted))
+                  .width(76)
+                  .textAlign(TextAlign.Center)
+              }
+              .height(38)
+              .backgroundColor(i % 2 === 0 ? Color.Transparent : this.palette().subtle)
+              .border({ width: { bottom: 1 }, color: this.palette().line })
+            }, (seg: NoonSegment) => '' + seg.startAbs)
+
+            Row() {
+              Text('')
+                .width(32)
+              Text(`合计（${this.noonRes.segments.length} 段）`)
+                .fontSize(11)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.palette().heading)
+                .width(150)
+              ForEach(STATUS_LIST, (meta: StatusMeta) => {
+                Text(fmtHM(this.noonRes.grand.get(meta.key)))
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.palette().heading)
+                  .width(56)
+                  .textAlign(TextAlign.Center)
+              }, (meta: StatusMeta) => meta.key)
+              Text(fmtHM(this.noonRes.grandCovered))
+                .fontSize(11)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.palette().heading)
+                .width(60)
+                .textAlign(TextAlign.Center)
+              Text(this.gapText(this.noonRes.rangeMs - this.noonRes.grandCovered))
+                .fontSize(10)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.palette().heading)
+                .width(76)
+                .textAlign(TextAlign.Center)
+            }
+            .height(42)
+            .backgroundColor(this.palette().subtle)
+          }
+          .width(32 + 150 + 56 * 5 + 60 + 76)
+        }
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
+        .width('100%')
+        .borderRadius(8)
+        .border({ width: 1, color: this.palette().line })
+
+        Text(this.noonNote())
+          .fontSize(11)
+          .fontColor(this.noonRes.rangeMs - this.noonRes.grandCovered > 1000
+            ? this.palette().signal
+            : this.palette().ok)
+          .width('100%')
+      }
+    }
+    .width('100%')
+  }
+
+  private segLenText(seg: NoonSegment): string {
+    const clockAdj: number = seg.endOff - seg.startOff;
+    let s: string = `段长 ${fmtHM(seg.endAbs - seg.startAbs)}（${((seg.endAbs - seg.startAbs) / 3600000).toFixed(1)}h）`;
+    if (clockAdj !== 0) {
+      s += ` · 拨钟 ${fmtClockAdj(clockAdj)}`;
+    }
+    return s;
+  }
+
+  private gapText(gap: number): string {
+    if (Math.abs(gap) < 1000) {
+      return '—';
+    }
+    return (gap > 0 ? '未覆盖 ' : '重叠 ') + fmtHM(Math.abs(gap));
+  }
+
+  private noonNote(): string {
+    const gap: number = this.noonRes.rangeMs - this.noonRes.grandCovered;
+    if (Math.abs(gap) < 1000 && !this.noonRes.overlap) {
+      return `✓ 校验通过：各状态合计 = 区间总长 ${fmtHM(this.noonRes.rangeMs)}`;
+    }
+    if (gap > 0) {
+      return `⚠ 有 ${fmtHM(gap)} 未被任何状态区间覆盖，请补录缺少的记录`;
+    }
+    return `⚠ 各状态合计比区间总长多 ${fmtHM(-gap)}，时间区间可能存在重叠`;
+  }
+
+  @Builder
+  noonTh(label: string, w: number) {
+    Text(label)
+      .fontSize(10)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(this.palette().muted)
+      .width(w)
+      .height(32)
+      .textAlign(TextAlign.Center)
+  }
+
+  // ---------- 页签 5：明细 ----------
+
+  @Builder
+  recordsTab() {
+    Scroll() {
+      Column({ space: 12 }) {
+        Column() {
+          this.sectionHeader('01', '数据管理', 'Data')
+          Column({ space: 8 }) {
+            Row({ space: 8 }) {
+              this.outlineButton('💾 保存备份', () => {
+                this.doBackup();
+              })
+              this.outlineButton('♻ 恢复备份', () => {
+                this.doRestore();
+              })
+            }
+            .width('100%')
+
+            Row({ space: 8 }) {
+              this.outlineButton('📊 导出 CSV', () => {
+                this.doExportCsv();
+              })
+              this.ghostButton('清空区间', () => {
+                this.clearRecords();
+              })
+            }
+            .width('100%')
+
+            Row({ space: 8 }) {
+              this.ghostButton('🧹 一键重置', () => {
+                this.resetAll();
+              })
+            }
+            .width('100%')
+
+            Text('数据自动保存在本机；备份为 .json，CSV 可用 Excel 打开')
+              .fontSize(10)
+              .fontColor(this.palette().muted)
+              .width('100%')
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+
+        Column() {
+          this.sectionHeader('02', '时间区间明细', 'Records')
+          if (this.sortedRecords().length === 0) {
+            Column({ space: 4 }) {
+              Text('暂无时间区间')
+                .fontSize(14)
+                .fontColor(this.palette().heading)
+              Text('在「录入」页添加第一段记录，统计与油耗将自动更新')
+                .fontSize(11)
+                .fontColor(this.palette().muted)
+                .textAlign(TextAlign.Center)
+            }
+            .width('100%')
+            .padding({ top: 20, bottom: 20 })
+            .alignItems(HorizontalAlign.Center)
+          } else {
+            ForEach(this.sortedRecords(), (rec: ShipRecord, idx: number) => {
+              this.recordRow(rec, idx)
+            }, (rec: ShipRecord) => rec.id)
+          }
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor(this.palette().glassCard)
+        .border({ width: 1, color: this.palette().glassBorder })
+        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .constraintSize({ minHeight: '100%' })
+    }
+    .scrollBar(BarState.Off)
+    .width('100%')
+    .height('100%')
+  }
+
+  private sortedRecords(): ShipRecord[] {
+    const sorted: ShipRecord[] = this.records.slice();
+    sorted.sort((a: ShipRecord, b: ShipRecord) => a.start - b.start);
+    return sorted;
+  }
+
+  @Builder
+  recordRow(rec: ShipRecord, idx: number) {
+    Column({ space: 5 }) {
+      Row({ space: 6 }) {
+        if (idx >= 0) {
+          Text('' + (idx + 1))
+            .fontSize(10)
+            .fontColor(this.palette().muted)
+            .width(18)
+        }
+        Text(this.statusName(rec.status))
+          .fontSize(10)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.palette().statusInk(rec.status))
+          .backgroundColor(this.palette().statusSoft(rec.status))
+          .borderRadius(5)
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+        Text(fmtDuration(rec.end - rec.start).text)
+          .fontSize(11)
+          .fontColor(this.palette().heading)
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text('✕')
+          .fontSize(13)
+          .fontColor(this.palette().muted)
+          .padding(4)
+          .onClick(() => {
+            this.deleteRecord(rec.id);
+          })
+      }
+      .width('100%')
+
+      Text(`${formatInZone(rec.start, recordStartOff(rec))}  ${fmtOffset(recordStartOff(rec))}`)
+        .fontSize(10)
+        .fontColor(this.palette().muted)
+        .width('100%')
+      Text(`${formatInZone(rec.end, recordEndOff(rec))}  ${fmtOffset(recordEndOff(rec))}`)
+        .fontSize(10)
+        .fontColor(this.palette().muted)
+        .width('100%')
+
+      if (rec.so !== NO_OFFSET && rec.eo !== NO_OFFSET && rec.so !== rec.eo) {
+        Text(`墙钟 ${fmtHM((rec.end + rec.eo * 60000) - (rec.start + rec.so * 60000))}｜拨钟 ${fmtClockAdj(rec.eo - rec.so)}`)
+          .fontSize(9)
+          .fontColor(this.palette().signal)
+          .width('100%')
+      }
+
+      if (rec.remark.length > 0) {
+        Text(rec.remark)
+          .fontSize(11)
+          .fontColor(this.palette().text)
+          .width('100%')
+      }
+    }
+    .width('100%')
+    .padding({ top: 7, bottom: 7 })
+    .border({ width: { bottom: 1 }, color: this.palette().line })
+  }
+
+  // ---------- 页头 / 页签栏 ----------
+
+  /** 沉浸光感底色：海图纸/暗舱渐变 + 两处柔光晕，给磨砂层提供折射内容 */
+  @Builder
+  backdrop() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .linearGradient({
+          angle: 160,
+          colors: [[this.palette().paper, 0.0], [this.palette().paperAlt, 1.0]]
+        })
+      Column()
+        .width(380)
+        .height(380)
+        .borderRadius(190)
+        .radialGradient({
+          center: ['50%', '50%'],
+          radius: 190,
+          colors: [[this.palette().glowA, 0.0], ['#00000000', 1.0]]
+        })
+        .position({ x: -120, y: -110 })
+      Column()
+        .width(320)
+        .height(320)
+        .borderRadius(160)
+        .radialGradient({
+          center: ['50%', '50%'],
+          radius: 160,
+          colors: [[this.palette().glowB, 0.0], ['#00000000', 1.0]]
+        })
+        .position({ x: 210, y: 470 })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  /** 悬浮胶囊页签（系统应用常见形态） */
+  @Builder
+  pillBar() {
+    Row() {
+      ForEach(TAB_DEFS, (t: TabDef) => {
+        Column({ space: 2 }) {
+          Text(t.icon)
+            .fontSize(18)
+            .opacity(this.curTab === t.index ? 1 : 0.4)
+          Text(t.label)
+            .fontSize(10)
+            .fontWeight(this.curTab === t.index ? FontWeight.Medium : FontWeight.Normal)
+            .fontColor(this.curTab === t.index ? this.palette().accent : this.palette().muted)
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => {
+          this.curTab = t.index;
+          this.tabsController.changeIndex(t.index);
+        })
+      }, (t: TabDef) => t.label)
+    }
+    .width('88%')
+    .height(62)
+    .backgroundColor(this.palette().glassBar)
+    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
+      { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    .border({ width: 1, color: this.palette().glassBorder })
+    .borderRadius(31)
+    .shadow({ radius: 20, color: this.palette().cardShadow, offsetY: 4 })
+    .margin({ bottom: this.bottomInset + 10 })
+  }
+
+  @Builder
+  appHeader() {
+    Row({ space: 8 }) {
+      Column({ space: 1 }) {
+        Text('船舶能耗计算器')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#f2f6fb')
+        Text('SHIP ENERGY LOG')
+          .fontSize(9)
+          .letterSpacing(1.6)
+          .fontColor('#9fc0dd')
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Row() {
+        Text('✉')
+          .fontSize(17)
+          .textAlign(TextAlign.Center)
+          .width(40)
+          .height(40)
+      }
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor('#2EFFFFFF')
+      .border({ width: 1, color: '#33FFFFFF' })
+      .onClick(() => {
+        this.aboutController.open();
+      })
+
+      Row() {
+        Text(this.isDark ? '☀' : '🌙')
+          .fontSize(18)
+          .textAlign(TextAlign.Center)
+          .width(40)
+          .height(40)
+      }
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor('#2EFFFFFF')
+      .border({ width: 1, color: '#33FFFFFF' })
+      .onClick(() => {
+        this.isDark = !this.isDark;
+        this.persist();
+      })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: this.topInset + 12, bottom: 12 })
+    .linearGradient({
+      angle: 155,
+      colors: [['#0c2a45', 0.0], ['#103a5e', 0.6], ['#0d2f4d', 1.0]]
+    })
+    .border({ width: { bottom: 3 }, color: this.palette().signal })
+  }
+
+  @Builder
+  tabItem(label: string, icon: string, index: number) {
+    Column({ space: 2 }) {
+      Text(icon)
+        .fontSize(17)
+        .opacity(this.curTab === index ? 1 : 0.45)
+      Text(label)
+        .fontSize(10)
+        .fontWeight(this.curTab === index ? FontWeight.Medium : FontWeight.Normal)
+        .fontColor(this.curTab === index ? this.palette().accent : this.palette().muted)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      this.backdrop()
+
+      Column() {
+        this.appHeader()
+
+        Tabs({ barPosition: BarPosition.End, index: this.curTab, controller: this.tabsController }) {
+        TabContent() {
+          this.entryTab()
+        }
+        .tabBar(this.tabItem('录入', '⏱', 0))
+
+        TabContent() {
+          this.voyageTab()
+        }
+        .tabBar(this.tabItem('航次', '⚓', 1))
+
+        TabContent() {
+          this.summaryTab()
+        }
+        .tabBar(this.tabItem('汇总', '📊', 2))
+
+        TabContent() {
+          this.noonTab()
+        }
+        .tabBar(this.tabItem('正午', '🌞', 3))
+
+        TabContent() {
+          this.recordsTab()
+        }
+        .tabBar(this.tabItem('明细', '📋', 4))
+      }
+      .onChange((index: number) => {
+        this.curTab = index;
+      })
+      .barHeight(0)
+      .barBackgroundColor(Color.Transparent)
+      .scrollable(true)
+      .layoutWeight(1)
+      .width('100%')
+    }
+    .width('100%')
+    .height('100%')
+      .backgroundColor(Color.Transparent)
+
+      this.pillBar()
+    }
+  }
+}

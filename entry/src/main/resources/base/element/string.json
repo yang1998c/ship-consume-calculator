@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "船舶能耗计算器主模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "船舶能耗计算器"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "船舶能耗计算器"
+    }
+  ]
+}
