@@ -51,6 +51,7 @@ export struct LicenseDialog {
       .layoutWeight(1)
       .width('100%')
       .scrollBar(BarState.Auto)
+      .edgeEffect(EdgeEffect.Spring)
       .align(Alignment.Top)
 
       Button('关闭')

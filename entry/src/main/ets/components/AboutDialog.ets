@@ -210,6 +210,7 @@ export struct AboutDialog {
       .layoutWeight(1)
       .width('100%')
       .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
       .align(Alignment.Top)
 
       Button('知道了')
