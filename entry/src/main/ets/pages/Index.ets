@@ -2,6 +2,7 @@
  * 船舶能耗计算器 —— 主界面
  * 五个页签：录入 / 航次 / 汇总 / 正午 / 明细
  */
+import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
 import { promptAction, window } from '@kit.ArkUI';
 import { DateTimeDialog } from '../components/DateTimeDialog';
@@ -546,7 +547,8 @@ struct Index {
         }
       });
     } catch (e) {
-      this.toast('读取备份文件失败');
+      const err = e as BusinessError;
+      this.toast(`读取备份文件失败：${err.message ?? err.code ?? '未知错误'}`);
     }
   }
 

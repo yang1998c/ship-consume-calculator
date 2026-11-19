@@ -4,6 +4,7 @@
 import { common } from '@kit.AbilityKit';
 import { picker } from '@kit.CoreFileKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 import {
   FuelRates, NO_OFFSET, NO_TIME, ShipRecord, ShipStatus, VoyageInfo, emptyVoyage
 } from './Types';
@@ -277,5 +278,23 @@ export async function pickTextFile(ctx: common.UIAbilityContext, suffix: string)
   if (uris.length === 0) {
     return '';
   }
-  return fs.readTextSync(uris[0]);
+  // 注意：picker 返回的是 file://docs/... 形式的 URI，
+  // fs.readTextSync 只接受应用沙箱路径，必须用 fd 读取。
+  const uri: string = uris[0];
+  const file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+  try {
+    const stat = fs.statSync(file.fd);
+    if (stat.size <= 0) {
+      return '';
+    }
+    const buffer = new ArrayBuffer(stat.size);
+    const readLen: number = fs.readSync(file.fd, buffer);
+    if (readLen <= 0) {
+      return '';
+    }
+    const decoder = util.TextDecoder.create('utf-8');
+    return decoder.decodeToString(new Uint8Array(buffer.slice(0, readLen)));
+  } finally {
+    fs.closeSync(file);
+  }
 }
