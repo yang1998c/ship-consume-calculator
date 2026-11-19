@@ -110,7 +110,7 @@ export struct AboutDialog {
       const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
       this.appVersion = info.versionName;
     } catch (e) {
-      this.appVersion = '1.0.3';
+      this.appVersion = '1.0.4';
     }
   }
 
