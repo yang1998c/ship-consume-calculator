@@ -1640,10 +1640,27 @@ struct Index {
             }
             .width('100%')
 
-            Text('数据自动保存在本机；备份为 .json；Excel 为四表结构，可导出、导入与下载模板')
-              .fontSize(10)
-              .fontColor(this.palette().muted)
+            Column({ space: 3 }) {
+              Text('数据自动保存在本机；备份为 .json；Excel 含 4 张报表，可导出、导入与下载模板')
+                .fontSize(10)
+                .fontColor(this.palette().muted)
+                .width('100%')
+              Row({ space: 4 }) {
+                Text('ℹ')
+                  .fontSize(10)
+                  .fontColor(this.palette().accent)
+                Text('Excel 最后一个工作表是「填写说明」，填写格式与注意事项请看那里')
+                  .fontSize(10)
+                  .fontColor(this.palette().accent)
+                  .layoutWeight(1)
+              }
               .width('100%')
+              .alignItems(VerticalAlign.Top)
+            }
+            .width('100%')
+            .padding(10)
+            .backgroundColor(this.palette().subtle)
+            .borderRadius(10)
           }
           .width('100%')
         }
