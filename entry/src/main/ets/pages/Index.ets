@@ -11,7 +11,7 @@ import { PolicyViewDialog, PrivacyGateDialog } from '../components/PrivacyDialog
 import { LicenseDialog } from '../components/LicenseDialog';
 import { DateTimeField, OffsetSelect, OilInput, ResultChip } from '../components/Fields';
 import {
-  computeFuel, computeNoon, computeSummary, computeVoyage, fmtClockAdj, fmtDuration, fmtHM, fmtOffset,
+  computeFuel, computeNoon, computeSummary, computeVoyage, floorToMinute, fmtClockAdj, fmtDuration, fmtHM, fmtOffset,
   formatInZone, formatInZoneShort, formatWall, FuelResult, localOffsetMin, noonOffAt, offsetLabel,
   recordEndOff, recordStartOff, TZ_OFFSETS, wallToMs
 } from '../model/Calc';
@@ -339,8 +339,9 @@ struct Index {
       this.formMsgOk = false;
       return;
     }
-    const start: number = this.startWall - this.startOff * 60000;
-    const end: number = this.endWall - this.endOff * 60000;
+    // 时间精度统一到分钟
+    const start: number = floorToMinute(this.startWall - this.startOff * 60000);
+    const end: number = floorToMinute(this.endWall - this.endOff * 60000);
     if (end <= start) {
       const hint: string = this.startOff !== this.endOff
         ? `（已按时区换算：${fmtOffset(this.startOff)} → ${fmtOffset(this.endOff)}，请检查墙钟时间与所选时区）`

@@ -8,7 +8,7 @@ import { util } from '@kit.ArkTS';
 import {
   FuelRates, NO_OFFSET, NO_TIME, ShipRecord, ShipStatus, VoyageInfo, emptyVoyage
 } from './Types';
-import { formatInZone, fmtOffset, pad2, recordEndOff, recordStartOff } from './Calc';
+import { floorToMinute, formatInZone, fmtOffset, pad2, recordEndOff, recordStartOff } from './Calc';
 
 export const KEY_RECORDS: string = 'ship_energy_records';
 export const KEY_RATES: string = 'ship_energy_rates';
@@ -71,8 +71,8 @@ export function decodeRecords(json: string): ShipRecord[] {
       }
       const rec: ShipRecord = {
         id: typeof r.id === 'string' && r.id.length > 0 ? r.id : newId(),
-        start: start,
-        end: end,
+        start: floorToMinute(start),
+        end: floorToMinute(end),
         status: statusOf(st),
         remark: typeof r.remark === 'string' ? r.remark : '',
         so: typeof r.so === 'number' ? Math.round(r.so) : NO_OFFSET,

@@ -42,8 +42,8 @@ export function fmtDuration(ms: number): DurInfo {
   if (minutes > 0) {
     parts.push(minutes + ' 分');
   }
-  if (seconds > 0 || parts.length === 0) {
-    parts.push(seconds + ' 秒');
+  if (parts.length === 0) {
+    parts.push('不足 1 分');
   }
   const info = new DurInfo();
   info.days = days;
@@ -53,6 +53,11 @@ export function fmtDuration(ms: number): DurInfo {
   info.totalHours = totalSec / 3600;
   info.text = parts.join(' ');
   return info;
+}
+
+/** 把绝对时间戳向下取整到分钟（应用内时间精度统一到分钟） */
+export function floorToMinute(ms: number): number {
+  return Math.floor(ms / 60000) * 60000;
 }
 
 /** 毫秒 -> 累计小时:分钟（hh:mm），如 96:00、3:30 */
@@ -150,10 +155,10 @@ export function partsOfWall(wallMs: number): WallParts {
   return p;
 }
 
-/** 墙钟毫秒 -> "YYYY-MM-DD HH:mm:ss" */
+/** 墙钟毫秒 -> "YYYY-MM-DD HH:mm"（精确到分钟） */
 export function formatWall(wallMs: number): string {
   const p = partsOfWall(wallMs);
-  return `${p.y}-${pad2(p.mo)}-${pad2(p.d)} ${pad2(p.h)}:${pad2(p.mi)}:${pad2(p.s)}`;
+  return `${p.y}-${pad2(p.mo)}-${pad2(p.d)} ${pad2(p.h)}:${pad2(p.mi)}`;
 }
 
 /** 墙钟毫秒 -> "MM-DD HH:mm" */
@@ -162,7 +167,7 @@ export function formatWallShort(wallMs: number): string {
   return `${pad2(p.mo)}-${pad2(p.d)} ${pad2(p.h)}:${pad2(p.mi)}`;
 }
 
-/** 绝对时间戳按指定船钟偏移格式化为 "YYYY-MM-DD HH:mm:ss" */
+/** 绝对时间戳按指定船钟偏移格式化为 "YYYY-MM-DD HH:mm"（精确到分钟） */
 export function formatInZone(ts: number, off: number): string {
   if (off === NO_OFFSET) {
     return formatWall(ts);

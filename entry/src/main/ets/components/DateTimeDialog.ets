@@ -94,7 +94,7 @@ export struct DateTimeDialog {
 
       TimePicker({
         selected: this.picked,
-        format: TimePickerFormat.HOUR_MINUTE_SECOND
+        format: TimePickerFormat.HOUR_MINUTE
       })
         .height(110)
         .width('100%')

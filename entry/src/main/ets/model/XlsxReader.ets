@@ -9,7 +9,7 @@ import { zlib } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import { NO_TIME, ShipRecord, ShipStatus } from './Types';
-import { localOffsetMin, wallToMs } from './Calc';
+import { floorToMinute, localOffsetMin, wallToMs } from './Calc';
 
 export class ImportedSheet {
   name: string = '';
@@ -139,9 +139,10 @@ function cellToWall(text: string): number {
   const n: number = Number(t);
   if (!isNaN(n) && n > 20000 && n < 80000) {
     // Excel 序列号（1899-12-30 起算），按 UTC 解释为朴素墙钟
-    return Math.round((n - 25569) * 86400000 / 1000) * 1000;
+    return floorToMinute(Math.round((n - 25569) * 86400000 / 60000) * 60000);
   }
-  return parseWall(t);
+  const wall: number = parseWall(t);
+  return isNaN(wall) ? NaN : floorToMinute(wall);
 }
 
 function statusOf(text: string): ShipStatus | null {

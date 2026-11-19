@@ -129,6 +129,44 @@ function rateSheet(rates: FuelRates): SheetSpec {
   return spec;
 }
 
+
+/** 填写说明（给用户看的，导入时忽略此表） */
+function notesSheet(): SheetSpec {
+  const spec = new SheetSpec();
+  spec.name = '填写说明';
+  spec.widths = [22, 12, 62];
+  const row = (a: string, b: string, c: string): Cell[] => [text(a), text(b), text(c)];
+
+  spec.rows.push([text('船舶能耗计算器 —— Excel 填写说明'), text(''), text('')]);
+  spec.rows.push(row('', '', ''));
+  spec.rows.push(row('一、填哪张表', '', '只需要填「时间区间明细」。一行代表一段时间，按时间先后排列即可。'));
+  spec.rows.push(row('', '', '「航次统计」「油耗参数」为可选，填了会一并导入；「时间汇总」是计算结果，不用填。'));
+  spec.rows.push(row('', '', ''));
+  spec.rows.push(row('二、各列说明', '', ''));
+  spec.rows.push(row('列名', '是否必填', '说明'));
+  spec.rows.push(row('序号', '否', '只用于阅读，导入时忽略，不填也可以'));
+  spec.rows.push(row('开始时间', '是', '格式：2026-11-19 08:00（精确到分钟，不用写秒）'));
+  spec.rows.push(row('结束时间', '是', '同上格式，且必须晚于开始时间'));
+  spec.rows.push(row('时长(小时)', '否', '由系统自动计算，导入时忽略'));
+  spec.rows.push(row('状态', '是', '航行 / 锚泊 / 漂航 / 靠泊 / 系浮筒（"飘航"也可识别）'));
+  spec.rows.push(row('备注', '否', '自由填写，如「上海→宁波」'));
+  spec.rows.push(row('', '', ''));
+  spec.rows.push(row('三、时间写法', '', '统一写到分钟，例如 2026-11-19 08:00；不要写秒、不要写时区后缀。'));
+  spec.rows.push(row('', '', '结束时间必须大于开始时间，否则该行会被跳过。'));
+  spec.rows.push(row('', '', ''));
+  spec.rows.push(row('四、跨时区', '', '如需记录拨钟，可在「时间区间明细」右侧自行增加两列：'));
+  spec.rows.push(row('', '', '开始时区 / 结束时区，写法如 UTC+9、UTC-3:30；不填则按本机时区解释。'));
+  spec.rows.push(row('', '', ''));
+  spec.rows.push(row('五、导入效果', '', '「时间区间明细」会替换应用内现有全部区间，导入前请先保存备份。'));
+  spec.rows.push(row('', '', '若表中包含「航次统计」「油耗参数」，对应的航次信息与油耗率也会一并更新。'));
+  spec.rows.push(row('', '', '个别行写错不会中断导入，会跳过并在导入结果中提示行号。'));
+  spec.rows.push(row('', '', ''));
+  spec.rows.push(row('六、示例', '', '广州→上海，航行 4 小时，备注可写航段'));
+  spec.rows.push([Cell.ofNum(1), text('2026-11-19 08:00'), text('2026-11-19 12:00'),
+    Cell.ofNum(4), text('航行'), text('广州→上海')]);
+  return spec;
+}
+
 export function buildStatsWorkbook(records: ShipRecord[], rates: FuelRates,
   voyage: VoyageInfo): SheetSpec[] {
   const names = statusName(records);
@@ -136,7 +174,8 @@ export function buildStatsWorkbook(records: ShipRecord[], rates: FuelRates,
     detailSheet(records, names),
     voyageSheet(records, voyage),
     summarySheet(records),
-    rateSheet(rates)
+    rateSheet(rates),
+    notesSheet()
   ];
 }
 
@@ -183,7 +222,7 @@ export function buildTemplateWorkbook(): SheetSpec[] {
     rate.rows.push([text(STATUS_LIST[i].name), text('')]);
   }
 
-  return [detail, voyage, summary, rate];
+  return [detail, voyage, summary, rate, notesSheet()];
 }
 
 export function statsFileName(): string {
