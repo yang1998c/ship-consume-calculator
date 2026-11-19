@@ -229,30 +229,6 @@ function csvCell(s: string): string {
   return s;
 }
 
-/** 时间区间明细（时间按各端船钟时区输出，跨时区时长已扣除拨钟量） */
-export function buildCsv(records: ShipRecord[], statusName: (s: ShipStatus) => string): string {
-  const sorted: ShipRecord[] = records.slice();
-  sorted.sort((a: ShipRecord, b: ShipRecord) => a.start - b.start);
-  const lines: string[] = [];
-  lines.push('序号,开始时间,开始时区,结束时间,结束时区,时长(小时),状态,备注');
-  for (let i: number = 0; i < sorted.length; i++) {
-    const r = sorted[i];
-    const row: string[] = [
-      '' + (i + 1),
-      formatInZone(r.start, recordStartOff(r)),
-      fmtOffset(recordStartOff(r)),
-      formatInZone(r.end, recordEndOff(r)),
-      fmtOffset(recordEndOff(r)),
-      ((r.end - r.start) / 3600000).toFixed(2),
-      statusName(r.status),
-      r.remark
-    ];
-    lines.push(row.map((c: string) => csvCell(c)).join(','));
-  }
-  // BOM：Excel 直接双击打开时中文不乱码
-  return '\uFEFF' + lines.join('\n');
-}
-
 // ---------------- 文件读写 ----------------
 
 export async function saveTextFile(ctx: common.UIAbilityContext, fileName: string, content: string): Promise<string> {
@@ -268,6 +244,37 @@ export async function saveTextFile(ctx: common.UIAbilityContext, fileName: strin
   fs.writeSync(file.fd, content);
   fs.closeSync(file);
   return uri;
+}
+
+/** 保存二进制文件（xlsx 等）到用户选择的位置 */
+export async function saveBinaryFile(ctx: common.UIAbilityContext, fileName: string,
+  data: Uint8Array): Promise<string> {
+  const options = new picker.DocumentSaveOptions();
+  options.newFileNames = [fileName];
+  const viewPicker = new picker.DocumentViewPicker(ctx);
+  const uris = await viewPicker.save(options);
+  if (uris.length === 0) {
+    return '';
+  }
+  const uri: string = uris[0];
+  const file = fs.openSync(uri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+  try {
+    const buf: ArrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+    fs.writeSync(file.fd, buf);
+  } finally {
+    fs.closeSync(file);
+  }
+  return uri;
+}
+
+/** 只返回选中的文件 URI（用于 xlsx 这类需要自行解析的二进制文件） */
+export async function pickFileUri(ctx: common.UIAbilityContext, suffix: string): Promise<string> {
+  const options = new picker.DocumentSelectOptions();
+  options.maxSelectNumber = 1;
+  options.fileSuffixFilters = [suffix];
+  const viewPicker = new picker.DocumentViewPicker(ctx);
+  const uris = await viewPicker.select(options);
+  return uris.length === 0 ? '' : uris[0];
 }
 
 export async function pickTextFile(ctx: common.UIAbilityContext, suffix: string): Promise<string> {

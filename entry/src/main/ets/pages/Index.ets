@@ -21,8 +21,11 @@ import {
 } from '../model/Types';
 import { Palette, Palettes } from '../model/Theme';
 import { AppData, loadAppData, saveAppData } from '../model/Storage';
-import { buildBackup, buildCsv, fileStamp, newId, parseBackup, pickTextFile, saveTextFile } from '../model/Store';
-import { CSV_TEMPLATE, parseCsv } from '../model/CsvImport';
+import { buildBackup, fileStamp, newId, parseBackup, pickFileUri, pickTextFile, saveBinaryFile, saveTextFile } from '../model/Store';
+import { buildStatsWorkbook, buildTemplateWorkbook, statsFileName } from '../model/ExcelExport';
+import { buildXlsx } from '../model/XlsxWriter';
+import { ExcelImportResult, mapSheets, readXlsx } from '../model/XlsxReader';
+
 
 const TARGET_START: number = 0;
 const TARGET_END: number = 1;
@@ -553,44 +556,19 @@ struct Index {
     }
   }
 
-  private async doImportCsv(): Promise<void> {
+  private async doExportExcel(): Promise<void> {
     if (this.ctx === null) {
       return;
     }
     try {
-      const text: string = await pickTextFile(this.ctx, '.csv');
-      if (text.length === 0) {
-        return;
+      const data: Uint8Array = buildXlsx(buildStatsWorkbook(this.records, this.rates, this.voyage));
+      const uri: string = await saveBinaryFile(this.ctx, statsFileName(), data);
+      if (uri.length > 0) {
+        this.toast(`已导出 Excel：${this.records.length} 条时间区间`);
       }
-      const res = parseCsv(text);
-      if (res.records.length === 0) {
-        const detail: string = res.errors.length > 0 ? `\n${res.errors.slice(0, 3).join('\n')}` : '';
-        this.toast(`没有可导入的记录${detail}`);
-        return;
-      }
-      const errInfo: string = res.errors.length > 0
-        ? `\n另有 ${res.errors.length} 行无法解析，将被跳过。` : '';
-      AlertDialog.show({
-        title: '导入 CSV',
-        message: `解析到 ${res.records.length} 条时间区间，将追加到现有 ${this.records.length} 条之后。${errInfo}`,
-        primaryButton: {
-          value: '取消',
-          action: () => {
-          }
-        },
-        secondaryButton: {
-          value: '追加导入',
-          action: () => {
-            this.records = this.records.concat(res.records);
-            this.refreshNoon();
-            this.persist();
-            this.toast(`已导入 ${res.records.length} 条时间区间`);
-          }
-        }
-      });
     } catch (e) {
       const err = e as BusinessError;
-      this.toast(`读取 CSV 失败：${err.message ?? '未知错误'}`);
+      this.toast(`导出失败：${err.message ?? '未知错误'}`);
     }
   }
 
@@ -599,29 +577,97 @@ struct Index {
       return;
     }
     try {
-      // 加 BOM，Excel 打开中文不乱码
-      const uri: string = await saveTextFile(this.ctx, '船舶能耗导入模板.csv', '\uFEFF' + CSV_TEMPLATE);
+      const data: Uint8Array = buildXlsx(buildTemplateWorkbook());
+      const uri: string = await saveBinaryFile(this.ctx, '船舶能耗统计模板.xlsx', data);
       if (uri.length > 0) {
-        this.toast('模板已保存，按列填写后用「导入 CSV」导入');
+        this.toast('模板已保存，填写后用「导入 Excel」导入');
       }
     } catch (e) {
       this.toast('保存模板失败');
     }
   }
 
-  private async doExportCsv(): Promise<void> {
+  private async doImportExcel(): Promise<void> {
     if (this.ctx === null) {
       return;
     }
     try {
-      const csv: string = buildCsv(this.records, (s: ShipStatus) => this.statusName(s));
-      const uri: string = await saveTextFile(this.ctx, `船舶能耗统计-${fileStamp()}.csv`, csv);
-      if (uri.length > 0) {
-        this.toast(`已导出 ${this.records.length} 条时间区间（CSV）`);
+      const uri: string = await pickFileUri(this.ctx, '.xlsx');
+      if (uri.length === 0) {
+        return;
       }
+      const sheets = await readXlsx(this.ctx, uri);
+      const res: ExcelImportResult = mapSheets(sheets);
+      if (res.records.length === 0) {
+        const detail: string = res.errors.length > 0 ? `：${res.errors.slice(0, 2).join('；')}` : '';
+        this.toast(`没有可导入的时间区间${detail}`);
+        return;
+      }
+      const extra: string[] = [];
+      if (res.voyageTimes[0] !== NO_TIME || res.oils[0] >= 0) {
+        extra.push('航次信息');
+      }
+      if (res.rates.size > 0) {
+        extra.push('油耗参数');
+      }
+      const extraText: string = extra.length > 0 ? `，以及${extra.join('、')}` : '';
+      const errText: string = res.errors.length > 0 ? `\n另有 ${res.errors.length} 行无法解析，已跳过。` : '';
+      AlertDialog.show({
+        title: '导入 Excel',
+        message: `将导入 ${res.records.length} 条时间区间${extraText}，并替换当前 ${this.records.length} 条记录。${errText}`,
+        primaryButton: {
+          value: '取消',
+          action: () => {
+          }
+        },
+        secondaryButton: {
+          value: '替换导入',
+          action: () => {
+            this.applyExcelImport(res);
+          }
+        }
+      });
     } catch (e) {
-      this.toast('导出失败');
+      const err = e as BusinessError;
+      this.toast(`读取 Excel 失败：${err.message ?? '未知错误'}`);
     }
+  }
+
+  private applyExcelImport(res: ExcelImportResult): void {
+    this.records = res.records;
+
+    const v: VoyageInfo = {
+      name: res.voyageName,
+      lastArrival: res.voyageTimes[0],
+      lastDeparture: res.voyageTimes[1],
+      thisArrival: res.voyageTimes[2],
+      oilLastArrival: res.oils[0],
+      oilLastDeparture: res.oils[1],
+      oilThisArrival: res.oils[2],
+      oilAdded: res.oils[3],
+      oilTransferred: res.oils[4]
+    };
+    this.voyage = v;
+    this.oilLastArrival = this.oilText(v.oilLastArrival);
+    this.oilLastDeparture = this.oilText(v.oilLastDeparture);
+    this.oilThisArrival = this.oilText(v.oilThisArrival);
+    this.oilAdded = this.oilText(v.oilAdded);
+    this.oilTransferred = this.oilText(v.oilTransferred);
+
+    if (res.rates.size > 0) {
+      const r: FuelRates = this.rates.clone();
+      res.rates.forEach((value: number, key: string) => {
+        r.set(key as ShipStatus, value);
+      });
+      this.rates = r;
+      this.rateTexts = [
+        '' + r.sailing, '' + r.anchorage, '' + r.drifting, '' + r.berthing, '' + r.buoy
+      ];
+    }
+
+    this.refreshNoon();
+    this.persist();
+    this.toast(`已导入 ${res.records.length} 条时间区间`);
   }
 
   // ---------- 计算入口 ----------
@@ -1567,11 +1613,11 @@ struct Index {
             .width('100%')
 
             Row({ space: 8 }) {
-              this.outlineButton('📊 导出 CSV', () => {
-                this.doExportCsv();
+              this.outlineButton('📊 导出 Excel', () => {
+                this.doExportExcel();
               })
-              this.outlineButton('📥 导入 CSV', () => {
-                this.doImportCsv();
+              this.outlineButton('📥 导入 Excel', () => {
+                this.doImportExcel();
               })
             }
             .width('100%')
@@ -1593,7 +1639,7 @@ struct Index {
             }
             .width('100%')
 
-            Text('数据自动保存在本机；备份为 .json；CSV 可用 Excel 打开，也可导入')
+            Text('数据自动保存在本机；备份为 .json；Excel 为四表结构，可导出、导入与下载模板')
               .fontSize(10)
               .fontColor(this.palette().muted)
               .width('100%')
