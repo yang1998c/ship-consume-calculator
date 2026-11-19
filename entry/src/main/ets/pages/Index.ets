@@ -108,7 +108,8 @@ struct Index {
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
-    customStyle: true
+    customStyle: true,
+    maskColor: '#66000000'
   });
 
   privacyController: CustomDialogController = new CustomDialogController({
@@ -126,7 +127,8 @@ struct Index {
     }),
     autoCancel: false,
     alignment: DialogAlignment.Center,
-    customStyle: true
+    customStyle: true,
+    maskColor: '#66000000'
   });
 
   policyController: CustomDialogController = new CustomDialogController({
@@ -135,7 +137,8 @@ struct Index {
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
-    customStyle: true
+    customStyle: true,
+    maskColor: '#66000000'
   });
 
   helpController: CustomDialogController = new CustomDialogController({
@@ -144,7 +147,8 @@ struct Index {
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
-    customStyle: true
+    customStyle: true,
+    maskColor: '#66000000'
   });
 
   licenseController: CustomDialogController = new CustomDialogController({
@@ -153,7 +157,8 @@ struct Index {
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
-    customStyle: true
+    customStyle: true,
+    maskColor: '#66000000'
   });
 
   aboutController: CustomDialogController = new CustomDialogController({
@@ -170,7 +175,8 @@ struct Index {
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
-    customStyle: true
+    customStyle: true,
+    maskColor: '#66000000'
   });
 
   private privacyAgreed: boolean = false;

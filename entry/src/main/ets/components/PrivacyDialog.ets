@@ -22,84 +22,103 @@ export struct PrivacyGateDialog {
   }
 
   build() {
-    Column({ space: 10 }) {
-      Text(PRIVACY_TITLE)
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.palette().heading)
-        .width('100%')
+    Column({ space: 14 }) {
+      // 应用标识
+      Row({ space: 12 }) {
+        Image($r('app.media.startIcon'))
+          .width(46)
+          .height(46)
+          .borderRadius(12)
+          .objectFit(ImageFit.Contain)
+        Column({ space: 3 }) {
+          Text('船舶能耗计算器')
+            .fontSize(17)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.palette().heading)
+          Text('首次启动 · 隐私确认')
+            .fontSize(11)
+            .fontColor(this.palette().muted)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Divider()
+        .color(this.palette().line)
 
       Scroll() {
-        Column({ space: 10 }) {
+        Column({ space: 12 }) {
           Text(PRIVACY_SUMMARY)
             .fontSize(13)
-            .lineHeight(21)
+            .lineHeight(22)
             .fontColor(this.palette().text)
             .width('100%')
 
           if (this.showFull) {
             Text(AGREEMENT_TEXT)
               .fontSize(12)
-              .lineHeight(19)
+              .lineHeight(20)
               .fontColor(this.palette().muted)
               .width('100%')
             Text(PRIVACY_TEXT)
               .fontSize(12)
-              .lineHeight(19)
+              .lineHeight(20)
               .fontColor(this.palette().muted)
               .width('100%')
           }
 
           Text(this.showFull ? '收起全文 ▴' : '查看完整全文 ▾')
             .fontSize(12)
+            .fontWeight(FontWeight.Medium)
             .fontColor(this.palette().accent)
             .width('100%')
-            .padding({ top: 4, bottom: 4 })
+            .padding({ top: 2, bottom: 2 })
             .onClick(() => {
               this.showFull = !this.showFull;
             })
         }
         .width('100%')
       }
-      .layoutWeight(1)
       .width('100%')
+      .constraintSize({ maxHeight: 380 })
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .align(Alignment.Top)
 
       Row({ space: 10 }) {
         Button('不同意并退出')
-          .fontSize(14)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
           .fontColor(this.palette().danger)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: this.palette().dangerBorder })
-          .borderRadius(12)
-          .height(44)
+          .backgroundColor(this.isDark ? '#33FF6B57' : '#1AE84026')
+          .borderRadius(22)
+          .height(46)
           .layoutWeight(1)
           .onClick(() => {
             this.onReject();
           })
         Button('同意并继续')
-          .fontSize(14)
+          .fontSize(15)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.palette().onAccent)
           .backgroundColor(this.palette().accent)
-          .borderRadius(12)
-          .height(44)
-          .layoutWeight(1)
+          .borderRadius(22)
+          .height(46)
+          .layoutWeight(1.15)
           .onClick(() => {
             this.onAgree();
           })
       }
       .width('100%')
     }
-    .width('92%')
-    .height('74%')
-    .padding(18)
+    .width('88%')
+    .constraintSize({ maxHeight: '82%' })
+    .padding(20)
     .backgroundColor(this.palette().glassSolid)
-    
-    .shadow({ radius: 24, color: this.palette().cardShadow, offsetY: 10 })
     .borderRadius(32)
+
   }
 }
 
