@@ -282,6 +282,12 @@ export function computeVoyage(records: ShipRecord[], v: VoyageInfo): VoyageResul
         res.matched++;
       }
     }
+    // 交叉校验：营运时间（抵港差）应与窗口内录入区间合计一致
+    const diff: number = res.opMs - res.coveredMs;
+    if (Math.abs(diff) > 60000) {
+      res.warns.push(`营运时间核对不符：按抵港时间差 ${fmtHM(res.opMs)}，` +
+        `按录入区间合计 ${fmtHM(res.coveredMs)}，相差 ${fmtHM(Math.abs(diff))}`);
+    }
   }
   return res;
 }

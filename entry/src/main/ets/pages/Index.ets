@@ -9,6 +9,7 @@ import { DateTimeDialog } from '../components/DateTimeDialog';
 import { AboutDialog } from '../components/AboutDialog';
 import { PolicyViewDialog, PrivacyGateDialog } from '../components/PrivacyDialog';
 import { LicenseDialog } from '../components/LicenseDialog';
+import { HelpDialog } from '../components/HelpDialog';
 import { DateTimeField, OffsetSelect, OilInput, ResultChip } from '../components/Fields';
 import {
   computeFuel, computeNoon, computeSummary, computeVoyage, floorToMinute, fmtClockAdj, fmtDuration, fmtHM, fmtOffset,
@@ -130,6 +131,15 @@ struct Index {
 
   policyController: CustomDialogController = new CustomDialogController({
     builder: PolicyViewDialog({
+      isDark: $isDark
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center,
+    customStyle: true
+  });
+
+  helpController: CustomDialogController = new CustomDialogController({
+    builder: HelpDialog({
       isDark: $isDark
     }),
     autoCancel: true,
@@ -1868,6 +1878,21 @@ struct Index {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
+
+      Row() {
+        SymbolGlyph($r('sys.symbol.info_circle'))
+          .fontSize(20)
+          .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+          .fontColor([this.palette().text])
+      }
+      .justifyContent(FlexAlign.Center)
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(this.palette().subtle)
+      .onClick(() => {
+        this.helpController.open();
+      })
 
       Row() {
         SymbolGlyph($r('sys.symbol.envelope'))
