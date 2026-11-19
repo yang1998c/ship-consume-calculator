@@ -227,21 +227,33 @@ struct Index {
   }
 
   /** 全屏沉浸：系统栏透明、内容延伸到状态栏与手势条之下 */
-  /** 切换页签：按方向左右滑入（打开右侧页签从右边进来，反之从左边） */
+  /** 切换页签：两段式水平推移——旧页推出，新页从另一侧推入 */
   private switchTab(index: number): void {
     if (index === this.curTab) {
       return;
     }
     const dir: number = index > this.curTab ? 1 : -1;
-    this.curTab = index;
-    this.tabsController.changeIndex(index);
-    // 新页面先落在来向一侧，再滑回原位，形成左右推移感
-    this.tabX = dir * 76;
-    this.tabFade = 0.45;
-    this.tabShift = 0;
-    animateTo({ duration: 300, curve: Curve.FastOutSlowIn }, () => {
-      this.tabX = 0;
-      this.tabFade = 1;
+    const target: number = index;
+
+    // 第一段：当前页向切换方向的反侧推出并淡出
+    animateTo({
+      duration: 130,
+      curve: Curve.FastOutSlowIn,
+      onFinish: () => {
+        // 换页，新页面先落在来向一侧
+        this.curTab = target;
+        this.tabsController.changeIndex(target);
+        this.tabX = dir * 90;
+        this.tabFade = 0.15;
+        // 第二段：新页面滑回原位并淡入
+        animateTo({ duration: 240, curve: Curve.FastOutSlowIn }, () => {
+          this.tabX = 0;
+          this.tabFade = 1;
+        });
+      }
+    }, () => {
+      this.tabX = -dir * 70;
+      this.tabFade = 0.15;
     });
   }
 

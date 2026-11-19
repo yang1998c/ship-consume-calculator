@@ -13,13 +13,25 @@ const EMAIL: string = '908903491@qq.com';
 
 
 const OS_NOTE: string =
-  '本应用为 ArkTS / ArkUI 原生实现，运行时不包含任何第三方代码。\n\n' +
-  '· 计算口径移植自同作者的网页版「船舶能耗计算器」；网页版导出 Excel 时曾使用 SheetJS' +
-  '（Apache License 2.0），鸿蒙版改为原生生成 .xlsx，未包含该库。\n\n' +
-  '· 开发期测试依赖（不打包进 HAP）：@ohos/hypium、@ohos/hamock，均为 Apache License 2.0。\n\n' +
-  '· 系统能力：HarmonyOS ArkUI 与系统背景模糊（BlurStyle），' +
-  '版权归华为所有，按 HarmonyOS SDK 许可使用。\n\n' +
-  '· 除上述内容外，本应用的全部源码由作者编写。';
+  '本应用为 ArkTS / ArkUI 原生实现，运行时不依赖任何第三方库。\n\n' +
+  '· 界面：HarmonyOS ArkUI 声明式框架；全部图标取自系统符号库（SymbolGlyph / sys.symbol），' +
+  '配色与控件形态参照 HarmonyOS Design。\n\n' +
+  '· Excel 读写为自行实现：导出时手写 ZIP 容器与 SpreadsheetML 生成 .xlsx；' +
+  '导入时用系统 zlib 解压，再解析工作表 XML。未使用 SheetJS 等表格库。\n\n' +
+  '· 系统能力：文件选择器（picker）、文件读写（fileIo）、ZIP 解压（zlib）、' +
+  '文本编解码（util.TextDecoder）、版本信息（bundleManager）。\n\n' +
+  '· 计算口径移植自同作者的网页版「船舶能耗计算器」，并针对移动端重新实现。\n\n' +
+  '· 开发期测试依赖（不打包进 HAP）：@ohos/hypium、@ohos/hamock，' +
+  '均为 Apache License 2.0。';
+
+const FEEDBACK_NOTE: string =
+  '这个工具是照着船上真实的记录习惯做的：拨钟、正午分段、存油核算，' +
+  '都尽量贴着值班时的流程走。\n\n' +
+  '但海况、航线和各家公司的报表要求差别很大，我一个人能想到的场景终归有限。' +
+  '如果你在使用中遇到——算出来的数对不上、某一步填起来别扭、' +
+  '或者少了一个你每次都得额外手抄一遍的环节——欢迎直接告诉我。\n\n' +
+  '尤其欢迎具体的麻烦，比如「这里每次都要手填一遍」「这个值和船上的表差 0.2 吨」，' +
+  '比笼统的「能不能优化一下」有用得多。提出来就会改。';
 
 const LICENSE_TEXT: string =
   'Copyright (c) 2026 KOKORO Yang\n\n' +
@@ -159,6 +171,37 @@ export struct AboutDialog {
           .width('100%')
           .padding(12)
           .backgroundColor(this.palette().subtle)
+          .borderRadius(16)
+          .alignItems(HorizontalAlign.Start)
+
+          // ---- 作者的话 / 反馈征集 ----
+          Column({ space: 8 }) {
+            Row({ space: 6 }) {
+              Text('作者的话')
+                .fontSize(14)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.palette().heading)
+              Text('FEEDBACK')
+                .fontSize(10)
+                .fontColor(this.palette().accent)
+                .letterSpacing(0.5)
+            }
+            .width('100%')
+
+            Text(FEEDBACK_NOTE)
+              .fontSize(12)
+              .lineHeight(19)
+              .fontColor(this.palette().text)
+              .width('100%')
+
+            Text('点上方 QQ 或邮箱可直接复制')
+              .fontSize(10)
+              .fontColor(this.palette().muted)
+              .width('100%')
+          }
+          .width('100%')
+          .padding(12)
+          .backgroundColor(this.isDark ? '#1A317AF7' : '#0F0A59F7')
           .borderRadius(16)
           .alignItems(HorizontalAlign.Start)
 
