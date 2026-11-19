@@ -13,25 +13,15 @@ const EMAIL: string = '908903491@qq.com';
 
 
 const OS_NOTE: string =
-  '本应用为 ArkTS / ArkUI 原生实现，运行时不依赖任何第三方库。\n\n' +
-  '· 界面：HarmonyOS ArkUI 声明式框架；全部图标取自系统符号库（SymbolGlyph / sys.symbol），' +
-  '配色与控件形态参照 HarmonyOS Design。\n\n' +
-  '· Excel 读写为自行实现：导出时手写 ZIP 容器与 SpreadsheetML 生成 .xlsx；' +
-  '导入时用系统 zlib 解压，再解析工作表 XML。未使用 SheetJS 等表格库。\n\n' +
-  '· 系统能力：文件选择器（picker）、文件读写（fileIo）、ZIP 解压（zlib）、' +
-  '文本编解码（util.TextDecoder）、版本信息（bundleManager）。\n\n' +
-  '· 计算口径移植自同作者的网页版「船舶能耗计算器」，并针对移动端重新实现。\n\n' +
-  '· 开发期测试依赖（不打包进 HAP）：@ohos/hypium、@ohos/hamock，' +
-  '均为 Apache License 2.0。';
+  '· 框架：HarmonyOS ArkUI（ArkTS）\n\n' +
+  '· 项目：船舶能耗计算器\n' +
+  '开源地址 github.com/yang1998c/ship-consume-calculator\n\n' +
+  '· 计算口径移植自同作者的网页版同名工具。';
 
 const FEEDBACK_NOTE: string =
-  '这个工具是照着船上真实的记录习惯做的：拨钟、正午分段、存油核算，' +
-  '都尽量贴着值班时的流程走。\n\n' +
-  '但海况、航线和各家公司的报表要求差别很大，我一个人能想到的场景终归有限。' +
-  '如果你在使用中遇到——算出来的数对不上、某一步填起来别扭、' +
-  '或者少了一个你每次都得额外手抄一遍的环节——欢迎直接告诉我。\n\n' +
-  '尤其欢迎具体的麻烦，比如「这里每次都要手填一遍」「这个值和船上的表差 0.2 吨」，' +
-  '比笼统的「能不能优化一下」有用得多。提出来就会改。';
+  '本工具为简便计算填报能耗数据而开发；本应用无联网功能，' +
+  '数据全部本地计算无需上云；因无法考虑到各船型和任务的需要，' +
+  '如有使用中遇到的问题与不便欢迎反馈。';
 
 const LICENSE_TEXT: string =
   'Copyright (c) 2026 KOKORO Yang\n\n' +
