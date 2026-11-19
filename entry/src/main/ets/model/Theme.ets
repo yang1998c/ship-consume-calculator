@@ -4,68 +4,67 @@
 import { ShipStatus } from './Types';
 
 export class Palette {
-  paper: string = '#e8e2d3';
-  /** 背景渐变的下缘色，给磨砂层提供层次 */
-  paperAlt: string = '#efe8d8';
-  /** 两处柔光晕，作为沉浸光感的底色 */
-  glowA: string = '#3315486E';
-  glowB: string = '#26C8821C';
-  card: string = '#fbf8f0';
-  subtle: string = '#f3eee0';
-  line: string = '#d2c8ae';
-  lineStrong: string = '#b9a984';
-  heading: string = '#10233a';
-  text: string = '#26333f';
-  muted: string = '#706854';
-  accent: string = '#15486e';
-  onAccent: string = '#fbf8f0';
-  signal: string = '#c8821c';
-  inputBg: string = '#fffefa';
-  fuelBg: string = '#f7ecd0';
-  fuelBorder: string = '#e2c98d';
-  fuelText: string = '#85560f';
-  ok: string = '#2e7d46';
-  danger: string = '#b2372a';
-  dangerBorder: string = '#ddb3aa';
-  outlineBorder: string = '#b6a985';
+  // —— HarmonyOS Design 系统色板（浅色）——
+  paper: string = '#F1F3F5';
+  paperAlt: string = '#F1F3F5';
+  glowA: string = '#00FFFFFF';
+  glowB: string = '#00FFFFFF';
+  card: string = '#FFFFFF';
+  subtle: string = '#F1F3F5';
+  line: string = '#1A182431';
+  lineStrong: string = '#33182431';
+  heading: string = '#182431';
+  text: string = '#182431';
+  muted: string = '#99182431';
+  accent: string = '#0A59F7';
+  onAccent: string = '#FFFFFF';
+  signal: string = '#ED6F21';
+  inputBg: string = '#F1F3F5';
+  fuelBg: string = '#FFF3E3';
+  fuelBorder: string = '#FFE0B8';
+  fuelText: string = '#B25E00';
+  ok: string = '#64BB5C';
+  danger: string = '#E84026';
+  dangerBorder: string = '#00FFFFFF';
+  outlineBorder: string = '#1A182431';
   /** 磨砂玻璃表面（半透明 + 背景模糊） */
-  glassCard: string = '#D9FBF8F0';
-  glassBorder: string = '#8CB9A984';
-  glassBar: string = '#D9F7F2E6';
+  glassCard: string = '#FFFFFF';
+  glassBorder: string = '#1A182431';
+  glassBar: string = '#F2FFFFFF';
   /** 需要压住正文的浮层（关于弹窗等）用更实的底 */
-  glassSolid: string = '#F7FBF8F0';
-  cardShadow: string = '#1A0C2036';
+  glassSolid: string = '#FFFFFF';
+  cardShadow: string = '#0D000000';
 
   statusColor(key: ShipStatus): string {
     switch (key) {
-      case ShipStatus.Sailing: return this.isDark ? '#74abe2' : '#2b6cb0';
-      case ShipStatus.Anchorage: return this.isDark ? '#dfa244' : '#b87014';
-      case ShipStatus.Drifting: return this.isDark ? '#49bfc0' : '#0d8386';
-      case ShipStatus.Berthing: return this.isDark ? '#60be7c' : '#3a8650';
-      case ShipStatus.Buoy: return this.isDark ? '#a98fe7' : '#7456bd';
-      default: return this.isDark ? '#74abe2' : '#2b6cb0';
+      case ShipStatus.Sailing: return this.isDark ? '#5C9BFF' : '#0A59F7';
+      case ShipStatus.Anchorage: return this.isDark ? '#FF9A52' : '#ED6F21';
+      case ShipStatus.Drifting: return this.isDark ? '#3ECFD8' : '#0AA6B8';
+      case ShipStatus.Berthing: return this.isDark ? '#7BD273' : '#4CA345';
+      case ShipStatus.Buoy: return this.isDark ? '#A98BFF' : '#8A5CF6';
+      default: return this.isDark ? '#5C9BFF' : '#0A59F7';
     }
   }
 
   statusSoft(key: ShipStatus): string {
     switch (key) {
-      case ShipStatus.Sailing: return this.isDark ? '#17283c' : '#e4edf6';
-      case ShipStatus.Anchorage: return this.isDark ? '#34281a' : '#f6e9d0';
-      case ShipStatus.Drifting: return this.isDark ? '#103133' : '#daf0ef';
-      case ShipStatus.Berthing: return this.isDark ? '#143021' : '#e1f1e4';
-      case ShipStatus.Buoy: return this.isDark ? '#262040' : '#ece7f8';
-      default: return this.isDark ? '#17283c' : '#e4edf6';
+      case ShipStatus.Sailing: return this.isDark ? '#12294D' : '#E8F0FE';
+      case ShipStatus.Anchorage: return this.isDark ? '#3A2413' : '#FDF0E4';
+      case ShipStatus.Drifting: return this.isDark ? '#0E3438' : '#E4F6F8';
+      case ShipStatus.Berthing: return this.isDark ? '#17331A' : '#EBF6E9';
+      case ShipStatus.Buoy: return this.isDark ? '#241B45' : '#F0EBFF';
+      default: return this.isDark ? '#12294D' : '#E8F0FE';
     }
   }
 
   statusInk(key: ShipStatus): string {
     switch (key) {
-      case ShipStatus.Sailing: return this.isDark ? '#a5c8ee' : '#1d4f84';
-      case ShipStatus.Anchorage: return this.isDark ? '#ecc076' : '#8a5410';
-      case ShipStatus.Drifting: return this.isDark ? '#7fd7d3' : '#0a6063';
-      case ShipStatus.Berthing: return this.isDark ? '#90d9a8' : '#296339';
-      case ShipStatus.Buoy: return this.isDark ? '#c6b2f1' : '#563b95';
-      default: return this.isDark ? '#a5c8ee' : '#1d4f84';
+      case ShipStatus.Sailing: return this.isDark ? '#9CC4FF' : '#0A59F7';
+      case ShipStatus.Anchorage: return this.isDark ? '#FFC08A' : '#C25A0A';
+      case ShipStatus.Drifting: return this.isDark ? '#7FE3EA' : '#00797F';
+      case ShipStatus.Berthing: return this.isDark ? '#A6E39F' : '#3E8C36';
+      case ShipStatus.Buoy: return this.isDark ? '#C9B6FF' : '#6A42D9';
+      default: return this.isDark ? '#9CC4FF' : '#0A59F7';
     }
   }
 
@@ -79,66 +78,66 @@ export class Palettes {
   private static buildLight(): Palette {
     const p = new Palette();
     p.isDark = false;
-    p.paper = '#e8e2d3';
-    p.paperAlt = '#f1eadb';
-    p.glowA = '#3315486E';
-    p.glowB = '#26C8821C';
-    p.card = '#fbf8f0';
-    p.subtle = '#f3eee0';
-    p.line = '#d2c8ae';
-    p.lineStrong = '#b9a984';
-    p.heading = '#10233a';
-    p.text = '#26333f';
-    p.muted = '#706854';
-    p.accent = '#15486e';
-    p.onAccent = '#fbf8f0';
-    p.signal = '#c8821c';
-    p.inputBg = '#fffefa';
-    p.fuelBg = '#f7ecd0';
-    p.fuelBorder = '#e2c98d';
-    p.fuelText = '#85560f';
-    p.ok = '#2e7d46';
-    p.danger = '#b2372a';
-    p.dangerBorder = '#ddb3aa';
-    p.outlineBorder = '#b6a985';
-    p.glassCard = '#D9FBF8F0';
-    p.glassBorder = '#8CB9A984';
-    p.glassBar = '#D9F7F2E6';
-    p.glassSolid = '#F7FBF8F0';
-    p.cardShadow = '#1A0C2036';
+    p.paper = '#F1F3F5';
+    p.paperAlt = '#F1F3F5';
+    p.glowA = '#00FFFFFF';
+    p.glowB = '#00FFFFFF';
+    p.card = '#FFFFFF';
+    p.subtle = '#F1F3F5';
+    p.line = '#1A182431';
+    p.lineStrong = '#33182431';
+    p.heading = '#182431';
+    p.text = '#182431';
+    p.muted = '#99182431';
+    p.accent = '#0A59F7';
+    p.onAccent = '#FFFFFF';
+    p.signal = '#ED6F21';
+    p.inputBg = '#F1F3F5';
+    p.fuelBg = '#FFF3E3';
+    p.fuelBorder = '#FFE0B8';
+    p.fuelText = '#B25E00';
+    p.ok = '#64BB5C';
+    p.danger = '#E84026';
+    p.dangerBorder = '#00FFFFFF';
+    p.outlineBorder = '#1A182431';
+    p.glassCard = '#FFFFFF';
+    p.glassBorder = '#1A182431';
+    p.glassBar = '#F2FFFFFF';
+    p.glassSolid = '#FFFFFF';
+    p.cardShadow = '#0D000000';
     return p;
   }
 
   private static buildDark(): Palette {
     const p = new Palette();
     p.isDark = true;
-    p.paper = '#0a111d';
-    p.paperAlt = '#101c30';
-    p.glowA = '#4D7FB0E4';
-    p.glowB = '#33E0A448';
-    p.card = '#131e30';
-    p.subtle = '#18253a';
-    p.line = '#28374e';
-    p.lineStrong = '#3c4e69';
-    p.heading = '#f0f5fc';
-    p.text = '#dce4ef';
-    p.muted = '#91a2ba';
-    p.accent = '#7fb0e4';
-    p.onAccent = '#0a1525';
-    p.signal = '#e0a448';
-    p.inputBg = '#0f192a';
-    p.fuelBg = '#2b220f';
-    p.fuelBorder = '#5c4b1d';
-    p.fuelText = '#e9bb61';
-    p.ok = '#62bd7e';
-    p.danger = '#e07060';
-    p.dangerBorder = '#61302a';
-    p.outlineBorder = '#3a4c68';
-    p.glassCard = '#CC0F1B2B';
-    p.glassBorder = '#663C4E69';
-    p.glassBar = '#D90B1524';
-    p.glassSolid = '#F70F1B2B';
-    p.cardShadow = '#66000000';
+    p.paper = '#000000';
+    p.paperAlt = '#000000';
+    p.glowA = '#00000000';
+    p.glowB = '#00000000';
+    p.card = '#1F1F1F';
+    p.subtle = '#2A2A2A';
+    p.line = '#33FFFFFF';
+    p.lineStrong = '#4DFFFFFF';
+    p.heading = '#E5FFFFFF';
+    p.text = '#E5FFFFFF';
+    p.muted = '#99FFFFFF';
+    p.accent = '#317AF7';
+    p.onAccent = '#FFFFFF';
+    p.signal = '#FF9A52';
+    p.inputBg = '#2A2A2A';
+    p.fuelBg = '#3A2A14';
+    p.fuelBorder = '#5C4420';
+    p.fuelText = '#FFC08A';
+    p.ok = '#7BD273';
+    p.danger = '#FF6B57';
+    p.dangerBorder = '#00FFFFFF';
+    p.outlineBorder = '#33FFFFFF';
+    p.glassCard = '#FF1F1F1F';
+    p.glassBorder = '#33FFFFFF';
+    p.glassBar = '#CC1F1F1F';
+    p.glassSolid = '#FF1F1F1F';
+    p.cardShadow = '#40000000';
     return p;
   }
 }

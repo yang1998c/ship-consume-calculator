@@ -123,9 +123,7 @@ export struct DateTimeDialog {
     .width('92%')
     .padding(18)
     .backgroundColor(this.palette().glassCard)
-    .border({ width: 1, color: this.palette().glassBorder })
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-      { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
     .shadow({ radius: 24, color: this.palette().cardShadow, offsetY: 10 })
     .shadow({ radius: 24, color: this.palette().cardShadow, offsetY: 10 })
     .borderRadius(20)

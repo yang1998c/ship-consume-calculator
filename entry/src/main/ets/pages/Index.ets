@@ -48,11 +48,11 @@ class TabDef {
 }
 
 const TAB_DEFS: TabDef[] = [
-  new TabDef('录入', '⏱', 0),
-  new TabDef('航次', '⚓', 1),
-  new TabDef('汇总', '📊', 2),
-  new TabDef('正午', '🌞', 3),
-  new TabDef('明细', '📋', 4)
+  new TabDef('录入', '\u{25F4}', 0),   // ◴ 时钟
+  new TabDef('航次', '\u{2197}', 1),   // ↗ 航次
+  new TabDef('汇总', '\u{25A6}', 2),   // ▦ 汇总格
+  new TabDef('正午', '\u{263C}', 3),   // ☼ 太阳
+  new TabDef('明细', '\u{2261}', 4)    // ≡ 列表
 ];
 
 @Entry
@@ -746,28 +746,17 @@ struct Index {
   @Builder
   sectionHeader(no: string, title: string, kicker: string) {
     Row({ space: 8 }) {
-      Text(no)
-        .fontSize(11)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.palette().onAccent)
-        .backgroundColor(this.palette().accent)
-        .borderRadius(6)
-        .width(24)
-        .height(20)
-        .textAlign(TextAlign.Center)
       Text(title)
-        .fontSize(15)
+        .fontSize(17)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.palette().heading)
         .layoutWeight(1)
       Text(kicker)
-        .fontSize(9)
+        .fontSize(11)
         .fontColor(this.palette().muted)
-        .letterSpacing(0.6)
-        .textCase(TextCase.UpperCase)
     }
     .width('100%')
-    .margin({ bottom: 10 })
+    .margin({ bottom: 12 })
   }
 
   @Builder
@@ -787,8 +776,8 @@ struct Index {
       .backgroundColor(this.formStatus === meta.key
         ? this.palette().statusColor(meta.key)
         : this.palette().statusSoft(meta.key))
-      .borderRadius(9)
-      .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+      .borderRadius(16)
+      .padding({ left: 16, right: 16, top: 8, bottom: 8 })
       .margin({ right: 8, bottom: 8 })
       .onClick(() => {
         this.formStatus = meta.key;
@@ -798,11 +787,11 @@ struct Index {
   @Builder
   primaryButton(label: string, action: () => void) {
     Button(label)
-      .fontSize(15)
+      .fontSize(16)
       .fontWeight(FontWeight.Medium)
       .fontColor(this.palette().onAccent)
       .backgroundColor(this.palette().accent)
-      .borderRadius(10)
+      .borderRadius(22)
       .height(44)
       .width('100%')
       .onClick(action)
@@ -811,12 +800,12 @@ struct Index {
   @Builder
   outlineButton(label: string, action: () => void) {
     Button(label)
-      .fontSize(13)
-      .fontColor(this.palette().text)
-      .backgroundColor(Color.Transparent)
-      .border({ width: 1, color: this.palette().outlineBorder })
-      .borderRadius(9)
-      .height(38)
+      .fontSize(14)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(this.palette().accent)
+      .backgroundColor(this.isDark ? '#33317AF7' : '#1A0A59F7')
+      .borderRadius(20)
+      .height(40)
       .layoutWeight(1)
       .onClick(action)
   }
@@ -824,12 +813,12 @@ struct Index {
   @Builder
   ghostButton(label: string, action: () => void) {
     Button(label)
-      .fontSize(13)
+      .fontSize(14)
+      .fontWeight(FontWeight.Medium)
       .fontColor(this.palette().danger)
-      .backgroundColor(Color.Transparent)
-      .border({ width: 1, color: this.palette().dangerBorder })
-      .borderRadius(9)
-      .height(38)
+      .backgroundColor(this.isDark ? '#33FF6B57' : '#1AE84026')
+      .borderRadius(20)
+      .height(40)
       .layoutWeight(1)
       .onClick(action)
   }
@@ -919,13 +908,9 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
 
         Column() {
           this.sectionHeader('02', '最近录入', 'Recent')
@@ -941,13 +926,9 @@ struct Index {
           }
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 100 })
@@ -1028,13 +1009,9 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
 
         Column() {
           this.sectionHeader('02', '存油数据（吨）', 'Fuel Stock')
@@ -1048,26 +1025,18 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
 
         Column() {
           this.sectionHeader('03', '核算结果', 'Result')
           this.voyageResultView()
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 100 })
@@ -1195,13 +1164,9 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
 
         Column() {
           this.sectionHeader('02', '能耗参数设置', 'Fuel Rate')
@@ -1259,13 +1224,9 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 100 })
@@ -1404,26 +1365,18 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
 
         Column() {
           this.sectionHeader('02', '正午分段时长', 'Noon Breakdown')
           this.noonTableView()
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 100 })
@@ -1604,27 +1557,27 @@ struct Index {
           this.sectionHeader('01', '数据管理', 'Data')
           Column({ space: 8 }) {
             Row({ space: 8 }) {
-              this.outlineButton('💾 保存备份', () => {
+              this.outlineButton('保存备份', () => {
                 this.doBackup();
               })
-              this.outlineButton('♻ 恢复备份', () => {
+              this.outlineButton('恢复备份', () => {
                 this.doRestore();
               })
             }
             .width('100%')
 
             Row({ space: 8 }) {
-              this.outlineButton('📊 导出 Excel', () => {
+              this.outlineButton('导出 Excel', () => {
                 this.doExportExcel();
               })
-              this.outlineButton('📥 导入 Excel', () => {
+              this.outlineButton('导入 Excel', () => {
                 this.doImportExcel();
               })
             }
             .width('100%')
 
             Row({ space: 8 }) {
-              this.outlineButton('📄 下载模板', () => {
+              this.outlineButton('下载模板', () => {
                 this.doDownloadTemplate();
               })
               this.ghostButton('清空区间', () => {
@@ -1634,7 +1587,7 @@ struct Index {
             .width('100%')
 
             Row({ space: 8 }) {
-              this.ghostButton('🧹 一键重置', () => {
+              this.ghostButton('一键重置', () => {
                 this.resetAll();
               })
             }
@@ -1665,13 +1618,9 @@ struct Index {
           .width('100%')
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
 
         Column() {
           this.sectionHeader('02', '时间区间明细', 'Records')
@@ -1695,13 +1644,9 @@ struct Index {
           }
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor(this.palette().glassCard)
-        .border({ width: 1, color: this.palette().glassBorder })
-        .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-          { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-        .shadow({ radius: 16, color: this.palette().cardShadow, offsetY: 6 })
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor(this.palette().card)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 100 })
@@ -1818,15 +1763,15 @@ struct Index {
     .height('100%')
   }
 
-  /** 悬浮胶囊页签（系统应用常见形态） */
+  /** 底部页签栏（系统应用标准形态） */
   @Builder
   pillBar() {
     Row() {
       ForEach(TAB_DEFS, (t: TabDef) => {
-        Column({ space: 2 }) {
+        Column({ space: 3 }) {
           Text(t.icon)
-            .fontSize(18)
-            .opacity(this.curTab === t.index ? 1 : 0.4)
+            .fontSize(20)
+            .opacity(this.curTab === t.index ? 1 : 0.45)
           Text(t.label)
             .fontSize(10)
             .fontWeight(this.curTab === t.index ? FontWeight.Medium : FontWeight.Normal)
@@ -1841,77 +1786,62 @@ struct Index {
         })
       }, (t: TabDef) => t.label)
     }
-    .width('88%')
-    .height(62)
+    .width('100%')
+    .height(56 + this.bottomInset)
+    .padding({ bottom: this.bottomInset })
     .backgroundColor(this.palette().glassBar)
     .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
       { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-    .border({ width: 1, color: this.palette().glassBorder })
-    .borderRadius(31)
-    .shadow({ radius: 20, color: this.palette().cardShadow, offsetY: 4 })
-    .margin({ bottom: this.bottomInset + 10 })
+    .border({ width: { top: 0.5 }, color: this.palette().line })
   }
 
   @Builder
   appHeader() {
     Row({ space: 8 }) {
-      Column({ space: 1 }) {
+      Column({ space: 2 }) {
         Text('船舶能耗计算器')
-          .fontSize(19)
+          .fontSize(26)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#f2f6fb')
+          .fontColor(this.palette().heading)
         Text('SHIP ENERGY LOG')
-          .fontSize(9)
-          .letterSpacing(1.6)
-          .fontColor('#9fc0dd')
+          .fontSize(10)
+          .letterSpacing(1.2)
+          .fontColor(this.palette().muted)
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
       Row() {
-        Text('✉')
+        Text('\u{24D8}')   // ⓘ
           .fontSize(17)
-          .textAlign(TextAlign.Center)
-          .width(40)
-          .height(40)
+          .fontColor(this.palette().text)
       }
       .justifyContent(FlexAlign.Center)
-      .alignItems(VerticalAlign.Center)
       .width(40)
       .height(40)
       .borderRadius(20)
-      .backgroundColor('#2EFFFFFF')
-      .border({ width: 1, color: '#33FFFFFF' })
+      .backgroundColor(this.palette().subtle)
       .onClick(() => {
         this.aboutController.open();
       })
 
       Row() {
-        Text(this.isDark ? '☀' : '🌙')
+        Text(this.isDark ? '\u{263C}' : '\u{263E}')
           .fontSize(18)
-          .textAlign(TextAlign.Center)
-          .width(40)
-          .height(40)
+          .fontColor(this.palette().text)
       }
       .justifyContent(FlexAlign.Center)
-      .alignItems(VerticalAlign.Center)
       .width(40)
       .height(40)
       .borderRadius(20)
-      .backgroundColor('#2EFFFFFF')
-      .border({ width: 1, color: '#33FFFFFF' })
+      .backgroundColor(this.palette().subtle)
       .onClick(() => {
         this.isDark = !this.isDark;
         this.persist();
       })
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: this.topInset + 12, bottom: 12 })
-    .linearGradient({
-      angle: 155,
-      colors: [['#0c2a45', 0.0], ['#103a5e', 0.6], ['#0d2f4d', 1.0]]
-    })
-    .border({ width: { bottom: 3 }, color: this.palette().signal })
+    .padding({ left: 16, right: 16, top: this.topInset + 8, bottom: 8 })
   }
 
   @Builder
@@ -1941,12 +1871,12 @@ struct Index {
         TabContent() {
           this.entryTab()
         }
-        .tabBar(this.tabItem('录入', '⏱', 0))
+        .tabBar(this.tabItem('录入', '\u{25F4}', 0))
 
         TabContent() {
           this.voyageTab()
         }
-        .tabBar(this.tabItem('航次', '⚓', 1))
+        .tabBar(this.tabItem('航次', '\u{2197}', 1))
 
         TabContent() {
           this.summaryTab()

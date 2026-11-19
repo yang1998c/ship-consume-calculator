@@ -4,17 +4,18 @@
  */
 import { promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
+import { bundleManager } from '@kit.AbilityKit';
 import { Palette, Palettes } from '../model/Theme';
 
 const AUTHOR: string = 'KOKORO Yang';
 const QQ: string = '908903491';
 const EMAIL: string = '908903491@qq.com';
-const VERSION: string = '1.0.0';
+
 
 const OS_NOTE: string =
   '本应用为 ArkTS / ArkUI 原生实现，运行时不包含任何第三方代码。\n\n' +
   '· 计算口径移植自同作者的网页版「船舶能耗计算器」；网页版导出 Excel 时曾使用 SheetJS' +
-  '（Apache License 2.0），鸿蒙版改用 CSV 导出，未包含该库。\n\n' +
+  '（Apache License 2.0），鸿蒙版改为原生生成 .xlsx，未包含该库。\n\n' +
   '· 开发期测试依赖（不打包进 HAP）：@ohos/hypium、@ohos/hamock，均为 Apache License 2.0。\n\n' +
   '· 系统能力：HarmonyOS ArkUI 与系统背景模糊（BlurStyle），' +
   '版权归华为所有，按 HarmonyOS SDK 许可使用。\n\n' +
@@ -35,6 +36,7 @@ const LICENSE_TEXT: string =
 export struct AboutDialog {
   controller?: CustomDialogController;
   @Link isDark: boolean;
+  @State appVersion: string = '';
   onShowPolicy: () => void = () => {
   };
   onShowLicense: () => void = () => {
@@ -101,6 +103,15 @@ export struct AboutDialog {
     .margin({ top: 4 })
   }
 
+  aboutToAppear(): void {
+    try {
+      const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
+      this.appVersion = info.versionName;
+    } catch (e) {
+      this.appVersion = '1.0.3';
+    }
+  }
+
   build() {
     Column({ space: 10 }) {
       Row() {
@@ -129,7 +140,7 @@ export struct AboutDialog {
                   .fontSize(17)
                   .fontWeight(FontWeight.Bold)
                   .fontColor(this.palette().heading)
-                Text(`船舶能耗计算器 v${VERSION}`)
+                Text(`船舶能耗计算器 v${this.appVersion}`)
                   .fontSize(11)
                   .fontColor(this.palette().muted)
               }
@@ -228,10 +239,8 @@ export struct AboutDialog {
     .height('76%')
     .padding(18)
     .backgroundColor(this.palette().glassSolid)
-    .border({ width: 1, color: this.palette().glassBorder })
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-      { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
     .shadow({ radius: 24, color: this.palette().cardShadow, offsetY: 10 })
-    .borderRadius(24)
+    .borderRadius(32)
   }
 }

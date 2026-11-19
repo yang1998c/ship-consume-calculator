@@ -97,11 +97,9 @@ export struct PrivacyGateDialog {
     .height('74%')
     .padding(18)
     .backgroundColor(this.palette().glassSolid)
-    .border({ width: 1, color: this.palette().glassBorder })
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-      { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
     .shadow({ radius: 24, color: this.palette().cardShadow, offsetY: 10 })
-    .borderRadius(24)
+    .borderRadius(32)
   }
 }
 
@@ -168,10 +166,8 @@ export struct PolicyViewDialog {
     .height('76%')
     .padding(18)
     .backgroundColor(this.palette().glassSolid)
-    .border({ width: 1, color: this.palette().glassBorder })
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
-      { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
     .shadow({ radius: 24, color: this.palette().cardShadow, offsetY: 10 })
-    .borderRadius(24)
+    .borderRadius(32)
   }
 }

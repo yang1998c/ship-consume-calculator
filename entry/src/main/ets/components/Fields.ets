@@ -37,8 +37,7 @@ export struct DateTimeField {
     .height(44)
     .padding({ left: 12, right: 12 })
     .backgroundColor(this.palette().inputBg)
-    .borderRadius(10)
-    .border({ width: 1, color: this.palette().line })
+    .borderRadius(12)
     .onClick(() => {
       this.onTap();
     })
@@ -89,7 +88,7 @@ export struct OffsetSelect {
       .height(38)
       .width(104)
       .backgroundColor(this.palette().subtle)
-      .borderRadius(9)
+      .borderRadius(12)
       .onSelect((index: number) => {
         this.onPick(index);
       })
@@ -120,8 +119,7 @@ export struct OilInput {
         .fontColor(this.palette().heading)
         .placeholderColor(this.palette().muted)
         .backgroundColor(this.palette().inputBg)
-        .borderRadius(9)
-        .border({ width: 1, color: this.palette().line })
+        .borderRadius(12)
         .height(40)
         .width(130)
         .textAlign(TextAlign.End)
@@ -179,7 +177,7 @@ export struct ResultChip {
     .layoutWeight(1)
     .padding(10)
     .backgroundColor(this.palette().subtle)
-    .borderRadius(10)
+    .borderRadius(12)
     .alignItems(HorizontalAlign.Start)
   }
 }
