@@ -239,9 +239,11 @@ export function computeFuel(totals: StatusTotals, rates: FuelRates): FuelResult 
 
 export function computeVoyage(records: ShipRecord[], v: VoyageInfo): VoyageResult {
   const res = new VoyageResult();
-  const tLA: number = v.lastArrival;
-  const tLD: number = v.lastDeparture;
-  const tTA: number = v.thisArrival;
+  // 航次三项时间是船钟墙钟，记录是绝对时间；必须先把墙钟解析成绝对时刻，
+  // 否则窗口裁剪会整体错开一个时区偏移（UTC+8 下差 8 小时）。
+  const tLA: number = v.lastArrival === NO_TIME ? NO_TIME : noonAbsForWall(v.lastArrival, records);
+  const tLD: number = v.lastDeparture === NO_TIME ? NO_TIME : noonAbsForWall(v.lastDeparture, records);
+  const tTA: number = v.thisArrival === NO_TIME ? NO_TIME : noonAbsForWall(v.thisArrival, records);
   const ready: boolean = tLA !== NO_TIME && tLD !== NO_TIME && tTA !== NO_TIME;
 
   if (ready) {
