@@ -954,7 +954,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 110 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1062,7 +1062,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 110 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1252,7 +1252,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 110 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1402,7 +1402,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 110 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1672,7 +1672,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 110 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1786,14 +1786,14 @@ struct Index {
     .height('100%')
   }
 
-  /** 底部页签栏（系统应用标准形态） */
+  /** 悬浮胶囊页签栏（系统应用常见形态） */
   @Builder
   pillBar() {
     Row() {
       ForEach(TAB_DEFS, (t: TabDef) => {
         Column({ space: 3 }) {
           SymbolGlyph(t.symbol)
-            .fontSize(23)
+            .fontSize(22)
             .renderingStrategy(SymbolRenderingStrategy.SINGLE)
             .fontColor([this.curTab === t.index ? this.palette().accent : this.palette().muted])
           Text(t.label)
@@ -1810,13 +1810,15 @@ struct Index {
         })
       }, (t: TabDef) => t.label)
     }
-    .width('100%')
-    .height(56 + this.bottomInset)
-    .padding({ bottom: this.bottomInset })
+    .width('88%')
+    .height(62)
     .backgroundColor(this.palette().glassBar)
     .backgroundBlurStyle(BlurStyle.COMPONENT_THICK,
       { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-    .border({ width: { top: 0.5 }, color: this.palette().line })
+    .border({ width: 0.5, color: this.palette().line })
+    .borderRadius(31)
+    .shadow({ radius: 20, color: this.palette().cardShadow, offsetY: 6 })
+    .margin({ bottom: this.bottomInset + 10 })
   }
 
   @Builder
