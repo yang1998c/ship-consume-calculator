@@ -7,8 +7,8 @@ export class Palette {
   // —— HarmonyOS Design 系统色板（浅色）——
   paper: string = '#F1F3F5';
   paperAlt: string = '#F1F3F5';
-  glowA: string = '#00FFFFFF';
-  glowB: string = '#00FFFFFF';
+  glowA: string = '#0D0A59F7';
+  glowB: string = '#0A0A59F7';
   card: string = '#FFFFFF';
   subtle: string = '#F1F3F5';
   line: string = '#1A182431';
@@ -80,8 +80,8 @@ export class Palettes {
     p.isDark = false;
     p.paper = '#F1F3F5';
     p.paperAlt = '#F1F3F5';
-    p.glowA = '#00FFFFFF';
-    p.glowB = '#00FFFFFF';
+    p.glowA = '#0D0A59F7';
+    p.glowB = '#0A0A59F7';
     p.card = '#FFFFFF';
     p.subtle = '#F1F3F5';
     p.line = '#1A182431';
@@ -113,8 +113,8 @@ export class Palettes {
     p.isDark = true;
     p.paper = '#000000';
     p.paperAlt = '#000000';
-    p.glowA = '#00000000';
-    p.glowB = '#00000000';
+    p.glowA = '#1A317AF7';
+    p.glowB = '#12317AF7';
     p.card = '#1F1F1F';
     p.subtle = '#2A2A2A';
     p.line = '#33FFFFFF';

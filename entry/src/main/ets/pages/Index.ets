@@ -207,7 +207,28 @@ struct Index {
     this.setupImmersive();
   }
 
+  /** 状态栏/导航条图标颜色跟随主题：浅色底用深色图标，深色底用浅色图标 */
+  private applySystemBars(): void {
+    if (this.ctx === null) {
+      return;
+    }
+    window.getLastWindow(this.ctx).then((win: window.Window) => {
+      win.setWindowSystemBarProperties({
+        statusBarColor: '#00000000',
+        statusBarContentColor: this.isDark ? '#FFFFFF' : '#000000',
+        navigationBarColor: '#00000000',
+        navigationBarContentColor: this.isDark ? '#FFFFFF' : '#000000'
+      });
+    }).catch(() => {
+    });
+  }
+
   /** 全屏沉浸：系统栏透明、内容延伸到状态栏与手势条之下 */
+  /** 头部浮层高度（含状态栏安全区），内容据此留出滚动余量 */
+  private headerH(): number {
+    return this.topInset + 68;
+  }
+
   private async setupImmersive(): Promise<void> {
     if (this.ctx === null) {
       return;
@@ -216,7 +237,9 @@ struct Index {
       const win = await window.getLastWindow(this.ctx);
       await win.setWindowLayoutFullScreen(true);
       await win.setWindowSystemBarProperties({
-        statusBarContentColor: '#FFFFFF',
+        statusBarColor: '#00000000',
+        statusBarContentColor: this.isDark ? '#FFFFFF' : '#000000',
+        navigationBarColor: '#00000000',
         navigationBarContentColor: this.isDark ? '#FFFFFF' : '#000000'
       });
       const topArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
@@ -931,7 +954,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1039,7 +1062,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1229,7 +1252,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1379,7 +1402,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1649,7 +1672,7 @@ struct Index {
         .backgroundColor(this.palette().card)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 100 })
+      .padding({ left: 16, right: 16, top: this.headerH() + 12, bottom: 100 })
       .constraintSize({ minHeight: '100%' })
     }
     .scrollBar(BarState.Off)
@@ -1841,10 +1864,14 @@ struct Index {
       .onClick(() => {
         this.isDark = !this.isDark;
         this.persist();
+        this.applySystemBars();
       })
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: this.topInset + 8, bottom: 8 })
+    .backgroundColor(this.isDark ? '#73000000' : '#73F1F3F5')
+    .backgroundBlurStyle(this.isDark ? BlurStyle.BACKGROUND_THIN : BlurStyle.BACKGROUND_THIN,
+      { colorMode: this.isDark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
   }
 
   @Builder
@@ -1868,10 +1895,7 @@ struct Index {
     Stack({ alignContent: Alignment.Bottom }) {
       this.backdrop()
 
-      Column() {
-        this.appHeader()
-
-        Tabs({ barPosition: BarPosition.End, index: this.curTab, controller: this.tabsController }) {
+      Tabs({ barPosition: BarPosition.End, index: this.curTab, controller: this.tabsController }) {
         TabContent() {
           this.entryTab()
         }
@@ -1903,12 +1927,22 @@ struct Index {
       .barHeight(0)
       .barBackgroundColor(Color.Transparent)
       .scrollable(true)
-      .layoutWeight(1)
       .width('100%')
-    }
-    .width('100%')
-    .height('100%')
-      .backgroundColor(Color.Transparent)
+      .height('100%')
+
+      Column() {
+        this.appHeader()
+        Column()
+          .width('100%')
+          .height(14)
+          .linearGradient({
+            angle: 180,
+            colors: [[this.isDark ? '#000000' : '#F1F3F5', 0.0],
+              [this.isDark ? '#00000000' : '#00F1F3F5', 1.0]]
+          })
+      }
+      .width('100%')
+      .position({ x: 0, y: 0 })
 
       this.pillBar()
     }
