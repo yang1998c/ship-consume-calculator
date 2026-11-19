@@ -13,9 +13,10 @@ Stage 模型，兼容 HarmonyOS 6.1.1(24)，target 26.0.0，面向 phone。
 | 航次 | 上次抵港 / 上次离港 / 本次抵港，五项存油数据；实时算出航行时间、营运时间、上一港在港时间、燃油实际消耗 |
 | 汇总 | 五状态时长卡片（小时 / 天时分秒 / hh:mm / 占比条）、区间总数与合计；油耗率设置与预计总能耗 |
 | 正午 | 以船钟每天 12:00 切分，逐段统计五状态时长、段内合计、未覆盖 / 重叠，并给出校验结论 |
-| 明细 | 区间列表（时区标注、跨时区拨钟量）、保存/恢复备份（.json）、导出 CSV、清空区间、一键重置 |
+| 明细 | 区间列表（时区标注、跨时区拨钟量）、保存/恢复备份（.json）、导出/导入 Excel、下载模板、清空区间、一键重置 |
 
-另含浅色「海图纸」/ 深色「驾驶台暗光」两套配色，可手动切换并记忆。
+界面遵循 HarmonyOS Design：系统色板、沉浸式半透明头部、悬浮胶囊页签、系统 Symbol 图标；
+支持浅色 / 深色两套主题并记忆选择。
 
 ## 关键口径
 
@@ -30,13 +31,16 @@ entry/src/main/ets/
 ├── model/
 │   ├── Types.ets      数据模型、状态枚举、汇总/油耗率容器
 │   ├── Calc.ets       纯函数：格式化、时区、航次核算、正午分段
-│   ├── Store.ets      JSON 编解码、备份/恢复、CSV、文件选择与读写
+│   ├── Store.ets      JSON 编解码、备份/恢复、文件选择与读写
+│   ├── XlsxWriter.ets ZIP + SpreadsheetML 生成 xlsx（无三方依赖）
+│   ├── XlsxReader.ets zlib 解压 + 工作表 XML 解析
+│   ├── ExcelExport.ets 四表报表与模板生成
 │   ├── Storage.ets    沙箱单文件持久化
 │   └── Theme.ets      两套配色
 ├── components/
 │   ├── DateTimeDialog.ets  船钟日期时间选择器（CustomDialog）
 │   ├── Fields.ets          时间框 / 时区选择 / 存油输入 / 结果卡片
-│   └── AboutDialog.ets     关于与反馈：联系方式、开源依赖、许可条款
+│   └── AboutDialog.ets     关于与反馈：联系方式、作者说明、开源信息、许可条款
 └── pages/
     └── Index.ets      五个页签的主界面
 ```
