@@ -22,6 +22,7 @@ import {
 import { Palette, Palettes } from '../model/Theme';
 import { AppData, loadAppData, saveAppData } from '../model/Storage';
 import { buildBackup, buildCsv, fileStamp, newId, parseBackup, pickTextFile, saveTextFile } from '../model/Store';
+import { CSV_TEMPLATE, parseCsv } from '../model/CsvImport';
 
 const TARGET_START: number = 0;
 const TARGET_END: number = 1;
@@ -549,6 +550,62 @@ struct Index {
     } catch (e) {
       const err = e as BusinessError;
       this.toast(`读取备份文件失败：${err.message ?? err.code ?? '未知错误'}`);
+    }
+  }
+
+  private async doImportCsv(): Promise<void> {
+    if (this.ctx === null) {
+      return;
+    }
+    try {
+      const text: string = await pickTextFile(this.ctx, '.csv');
+      if (text.length === 0) {
+        return;
+      }
+      const res = parseCsv(text);
+      if (res.records.length === 0) {
+        const detail: string = res.errors.length > 0 ? `\n${res.errors.slice(0, 3).join('\n')}` : '';
+        this.toast(`没有可导入的记录${detail}`);
+        return;
+      }
+      const errInfo: string = res.errors.length > 0
+        ? `\n另有 ${res.errors.length} 行无法解析，将被跳过。` : '';
+      AlertDialog.show({
+        title: '导入 CSV',
+        message: `解析到 ${res.records.length} 条时间区间，将追加到现有 ${this.records.length} 条之后。${errInfo}`,
+        primaryButton: {
+          value: '取消',
+          action: () => {
+          }
+        },
+        secondaryButton: {
+          value: '追加导入',
+          action: () => {
+            this.records = this.records.concat(res.records);
+            this.refreshNoon();
+            this.persist();
+            this.toast(`已导入 ${res.records.length} 条时间区间`);
+          }
+        }
+      });
+    } catch (e) {
+      const err = e as BusinessError;
+      this.toast(`读取 CSV 失败：${err.message ?? '未知错误'}`);
+    }
+  }
+
+  private async doDownloadTemplate(): Promise<void> {
+    if (this.ctx === null) {
+      return;
+    }
+    try {
+      // 加 BOM，Excel 打开中文不乱码
+      const uri: string = await saveTextFile(this.ctx, '船舶能耗导入模板.csv', '\uFEFF' + CSV_TEMPLATE);
+      if (uri.length > 0) {
+        this.toast('模板已保存，按列填写后用「导入 CSV」导入');
+      }
+    } catch (e) {
+      this.toast('保存模板失败');
     }
   }
 
@@ -1513,6 +1570,16 @@ struct Index {
               this.outlineButton('📊 导出 CSV', () => {
                 this.doExportCsv();
               })
+              this.outlineButton('📥 导入 CSV', () => {
+                this.doImportCsv();
+              })
+            }
+            .width('100%')
+
+            Row({ space: 8 }) {
+              this.outlineButton('📄 下载模板', () => {
+                this.doDownloadTemplate();
+              })
               this.ghostButton('清空区间', () => {
                 this.clearRecords();
               })
@@ -1526,7 +1593,7 @@ struct Index {
             }
             .width('100%')
 
-            Text('数据自动保存在本机；备份为 .json，CSV 可用 Excel 打开')
+            Text('数据自动保存在本机；备份为 .json；CSV 可用 Excel 打开，也可导入')
               .fontSize(10)
               .fontColor(this.palette().muted)
               .width('100%')

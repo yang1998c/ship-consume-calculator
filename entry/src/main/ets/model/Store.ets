@@ -249,7 +249,8 @@ export function buildCsv(records: ShipRecord[], statusName: (s: ShipStatus) => s
     ];
     lines.push(row.map((c: string) => csvCell(c)).join(','));
   }
-  return lines.join('\n');
+  // BOM：Excel 直接双击打开时中文不乱码
+  return '\uFEFF' + lines.join('\n');
 }
 
 // ---------------- 文件读写 ----------------
