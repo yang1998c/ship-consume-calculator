@@ -25,3 +25,6 @@ store-assets/*.app
 
 # 商店素材（仅本地，上传 AGC 用）
 store-assets/screenshots/
+
+# 商店宣传图（本地生成）
+store-assets/promo/
