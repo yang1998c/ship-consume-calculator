@@ -69,6 +69,7 @@ struct Index {
   @State curTab: number = 0;
   @State tabFade: number = 1;
   @State tabShift: number = 0;
+  @State tabX: number = 0;
 
   // ---------- 录入表单 ----------
   @State startWall: number = 0;
@@ -226,18 +227,21 @@ struct Index {
   }
 
   /** 全屏沉浸：系统栏透明、内容延伸到状态栏与手势条之下 */
-  /** 切换页签：内容淡入 + 轻微上浮，作为过渡动画 */
+  /** 切换页签：按方向左右滑入（打开右侧页签从右边进来，反之从左边） */
   private switchTab(index: number): void {
     if (index === this.curTab) {
       return;
     }
+    const dir: number = index > this.curTab ? 1 : -1;
     this.curTab = index;
     this.tabsController.changeIndex(index);
-    this.tabFade = 0.3;
-    this.tabShift = 12;
-    animateTo({ duration: 260, curve: Curve.FastOutSlowIn }, () => {
+    // 新页面先落在来向一侧，再滑回原位，形成左右推移感
+    this.tabX = dir * 76;
+    this.tabFade = 0.45;
+    this.tabShift = 0;
+    animateTo({ duration: 300, curve: Curve.FastOutSlowIn }, () => {
+      this.tabX = 0;
       this.tabFade = 1;
-      this.tabShift = 0;
     });
   }
 
@@ -1943,7 +1947,7 @@ struct Index {
         this.curTab = index;
       })
       .opacity(this.tabFade)
-      .translate({ y: this.tabShift })
+      .translate({ x: this.tabX })
       .barHeight(0)
       .barBackgroundColor(Color.Transparent)
       .scrollable(true)
