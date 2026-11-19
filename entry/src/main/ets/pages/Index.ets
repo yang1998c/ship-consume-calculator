@@ -119,6 +119,11 @@ struct Index {
         this.privacyAgreed = true;
         this.persist();
         this.privacyController.close();
+        if (!this.onboarded) {
+          setTimeout(() => {
+            this.showOnboard = true;
+          }, 260);
+        }
       },
       onReject: () => {
         const c = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -180,6 +185,8 @@ struct Index {
   });
 
   private privacyAgreed: boolean = false;
+  @State onboarded: boolean = false;
+  @State showOnboard: boolean = false;
   private privacyPrompted: boolean = false;
   private ctx: common.UIAbilityContext | null = null;
   private tabsController: TabsController = new TabsController();
@@ -201,6 +208,7 @@ struct Index {
     this.noonEnd = data.noonEnd;
     this.isDark = data.dark;
     this.privacyAgreed = data.privacyAgreed;
+    this.onboarded = data.onboarded;
 
     this.rateTexts = [
       '' + this.rates.sailing, '' + this.rates.anchorage, '' + this.rates.drifting,
@@ -303,6 +311,12 @@ struct Index {
   }
 
   onPageShow(): void {
+    // 已同意隐私但还没看过引导时补一次
+    if (this.privacyAgreed && !this.onboarded && !this.showOnboard) {
+      setTimeout(() => {
+        this.showOnboard = true;
+      }, 360);
+    }
     // 首帧之后再弹，避免窗口未就绪导致异常
     if (!this.privacyAgreed && !this.privacyPrompted) {
       this.privacyPrompted = true;
@@ -332,6 +346,7 @@ struct Index {
     data.noonEnd = this.noonEnd;
     data.dark = this.isDark;
     data.privacyAgreed = this.privacyAgreed;
+    data.onboarded = this.onboarded;
     try {
       saveAppData(this.ctx, data);
     } catch (e) {
@@ -1869,6 +1884,74 @@ struct Index {
     .margin({ bottom: this.bottomInset + 10 })
   }
 
+  /** 首次使用引导：变暗遮罩 + 箭头指向「使用方法」按钮 */
+  @Builder
+  onboardLayer() {
+    Stack({ alignContent: Alignment.TopEnd }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#99000000')
+        .onClick(() => {
+        })
+
+      Column() {
+        // 指向使用方法按钮的箭头
+        Row() {
+          Polygon({ width: 22, height: 12 })
+            .points([[11, 0], [22, 12], [0, 12]])
+            .fill(this.isDark ? '#1F1F1F' : '#FFFFFF')
+        }
+        .width(300)
+        .padding({ left: 178 })
+        .justifyContent(FlexAlign.Start)
+
+        Column({ space: 8 }) {
+          Text('先看这里')
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.palette().heading)
+            .width('100%')
+          Text('第一次使用，建议先花一分钟看「使用方法」——录入、航次核对、Excel 导入导出的步骤都写在里面。')
+            .fontSize(12)
+            .lineHeight(19)
+            .fontColor(this.palette().text)
+            .width('100%')
+          Button('知道了')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.palette().onAccent)
+            .backgroundColor(this.palette().accent)
+            .borderRadius(18)
+            .height(36)
+            .width('100%')
+            .margin({ top: 2 })
+            .onClick(() => {
+              this.finishOnboard();
+            })
+        }
+        .width(300)
+        .padding(14)
+        .backgroundColor(this.palette().card)
+        .borderRadius(16)
+        .shadow({ radius: 22, color: this.palette().cardShadow, offsetY: 8 })
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .margin({ top: this.topInset + 64, right: 10 })
+      .padding({ right: 10 })
+      .alignItems(HorizontalAlign.End)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  private finishOnboard(): void {
+    this.showOnboard = false;
+    this.onboarded = true;
+    this.persist();
+  }
+
   @Builder
   appHeader() {
     Row({ space: 8 }) {
@@ -2012,6 +2095,10 @@ struct Index {
       .position({ x: 0, y: 0 })
 
       this.pillBar()
+
+      if (this.showOnboard) {
+        this.onboardLayer()
+      }
     }
   }
 }

@@ -17,6 +17,8 @@ export class AppData {
   dark: boolean = false;
   /** 是否已同意用户协议与隐私政策 */
   privacyAgreed: boolean = false;
+  /** 是否已看过首次使用引导 */
+  onboarded: boolean = false;
 }
 
 interface RawAppData {
@@ -27,6 +29,7 @@ interface RawAppData {
   noonEnd?: number;
   dark?: boolean;
   privacyAgreed?: boolean;
+  onboarded?: boolean;
 }
 
 function dataPath(ctx: common.Context): string {
@@ -58,6 +61,7 @@ export function loadAppData(ctx: common.Context): AppData {
     data.noonEnd = typeof raw.noonEnd === 'number' ? raw.noonEnd : NO_TIME;
     data.dark = raw.dark === true;
     data.privacyAgreed = raw.privacyAgreed === true;
+    data.onboarded = raw.onboarded === true;
   } catch (e) {
     return new AppData();
   }
@@ -73,7 +77,8 @@ export function saveAppData(ctx: common.Context, data: AppData): void {
     noonStart: data.noonStart,
     noonEnd: data.noonEnd,
     dark: data.dark,
-    privacyAgreed: data.privacyAgreed
+    privacyAgreed: data.privacyAgreed,
+    onboarded: data.onboarded
   };
   const text = JSON.stringify(payload);
   const file = fs.openSync(path, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
