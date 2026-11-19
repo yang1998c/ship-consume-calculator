@@ -37,22 +37,22 @@ const TARGET_NOON_E: number = 6;
 
 class TabDef {
   label: string = '';
-  icon: string = '';
+  symbol: Resource = $r('sys.symbol.clock');
   index: number = 0;
 
-  constructor(label: string, icon: string, index: number) {
+  constructor(label: string, symbol: Resource, index: number) {
     this.label = label;
-    this.icon = icon;
+    this.symbol = symbol;
     this.index = index;
   }
 }
 
 const TAB_DEFS: TabDef[] = [
-  new TabDef('录入', '\u{25F4}', 0),   // ◴ 时钟
-  new TabDef('航次', '\u{2197}', 1),   // ↗ 航次
-  new TabDef('汇总', '\u{25A6}', 2),   // ▦ 汇总格
-  new TabDef('正午', '\u{263C}', 3),   // ☼ 太阳
-  new TabDef('明细', '\u{2261}', 4)    // ≡ 列表
+  new TabDef('录入', $r('sys.symbol.pencil_line'), 0),
+  new TabDef('航次', $r('sys.symbol.compass'), 1),
+  new TabDef('汇总', $r('sys.symbol.square_grid_2x2'), 2),
+  new TabDef('正午', $r('sys.symbol.sun_max'), 3),
+  new TabDef('明细', $r('sys.symbol.list_bullet'), 4)
 ];
 
 @Entry
@@ -1769,9 +1769,10 @@ struct Index {
     Row() {
       ForEach(TAB_DEFS, (t: TabDef) => {
         Column({ space: 3 }) {
-          Text(t.icon)
-            .fontSize(20)
-            .opacity(this.curTab === t.index ? 1 : 0.45)
+          SymbolGlyph(t.symbol)
+            .fontSize(23)
+            .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+            .fontColor([this.curTab === t.index ? this.palette().accent : this.palette().muted])
           Text(t.label)
             .fontSize(10)
             .fontWeight(this.curTab === t.index ? FontWeight.Medium : FontWeight.Normal)
@@ -1812,9 +1813,10 @@ struct Index {
       .layoutWeight(1)
 
       Row() {
-        Text('\u{24D8}')   // ⓘ
-          .fontSize(17)
-          .fontColor(this.palette().text)
+        SymbolGlyph($r('sys.symbol.envelope'))
+          .fontSize(20)
+          .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+          .fontColor([this.palette().text])
       }
       .justifyContent(FlexAlign.Center)
       .width(40)
@@ -1826,9 +1828,10 @@ struct Index {
       })
 
       Row() {
-        Text(this.isDark ? '\u{263C}' : '\u{263E}')
-          .fontSize(18)
-          .fontColor(this.palette().text)
+        SymbolGlyph(this.isDark ? $r('sys.symbol.sun_max') : $r('sys.symbol.moon'))
+          .fontSize(20)
+          .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+          .fontColor([this.palette().text])
       }
       .justifyContent(FlexAlign.Center)
       .width(40)
@@ -1845,11 +1848,12 @@ struct Index {
   }
 
   @Builder
-  tabItem(label: string, icon: string, index: number) {
+  tabItem(label: string, symbol: Resource, index: number) {
     Column({ space: 2 }) {
-      Text(icon)
-        .fontSize(17)
-        .opacity(this.curTab === index ? 1 : 0.45)
+      SymbolGlyph(symbol)
+        .fontSize(20)
+        .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+        .fontColor([this.curTab === index ? this.palette().accent : this.palette().muted])
       Text(label)
         .fontSize(10)
         .fontWeight(this.curTab === index ? FontWeight.Medium : FontWeight.Normal)
@@ -1871,27 +1875,27 @@ struct Index {
         TabContent() {
           this.entryTab()
         }
-        .tabBar(this.tabItem('录入', '\u{25F4}', 0))
+        .tabBar(this.tabItem('录入', $r('sys.symbol.pencil_line'), 0))
 
         TabContent() {
           this.voyageTab()
         }
-        .tabBar(this.tabItem('航次', '\u{2197}', 1))
+        .tabBar(this.tabItem('航次', $r('sys.symbol.compass'), 1))
 
         TabContent() {
           this.summaryTab()
         }
-        .tabBar(this.tabItem('汇总', '📊', 2))
+        .tabBar(this.tabItem('汇总', $r('sys.symbol.square_grid_2x2'), 2))
 
         TabContent() {
           this.noonTab()
         }
-        .tabBar(this.tabItem('正午', '🌞', 3))
+        .tabBar(this.tabItem('正午', $r('sys.symbol.sun_max'), 3))
 
         TabContent() {
           this.recordsTab()
         }
-        .tabBar(this.tabItem('明细', '📋', 4))
+        .tabBar(this.tabItem('明细', $r('sys.symbol.list_bullet'), 4))
       }
       .onChange((index: number) => {
         this.curTab = index;
