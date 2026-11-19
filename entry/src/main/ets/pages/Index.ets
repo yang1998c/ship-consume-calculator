@@ -67,6 +67,8 @@ struct Index {
   @State topInset: number = 0;
   @State bottomInset: number = 0;
   @State curTab: number = 0;
+  @State tabFade: number = 1;
+  @State tabShift: number = 0;
 
   // ---------- 录入表单 ----------
   @State startWall: number = 0;
@@ -224,6 +226,21 @@ struct Index {
   }
 
   /** 全屏沉浸：系统栏透明、内容延伸到状态栏与手势条之下 */
+  /** 切换页签：内容淡入 + 轻微上浮，作为过渡动画 */
+  private switchTab(index: number): void {
+    if (index === this.curTab) {
+      return;
+    }
+    this.curTab = index;
+    this.tabsController.changeIndex(index);
+    this.tabFade = 0.3;
+    this.tabShift = 12;
+    animateTo({ duration: 260, curve: Curve.FastOutSlowIn }, () => {
+      this.tabFade = 1;
+      this.tabShift = 0;
+    });
+  }
+
   /** 头部浮层高度（含状态栏安全区），内容据此留出滚动余量 */
   private headerH(): number {
     return this.topInset + 68;
@@ -1805,8 +1822,7 @@ struct Index {
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .onClick(() => {
-          this.curTab = t.index;
-          this.tabsController.changeIndex(t.index);
+          this.switchTab(t.index);
         })
       }, (t: TabDef) => t.label)
     }
@@ -1926,6 +1942,8 @@ struct Index {
       .onChange((index: number) => {
         this.curTab = index;
       })
+      .opacity(this.tabFade)
+      .translate({ y: this.tabShift })
       .barHeight(0)
       .barBackgroundColor(Color.Transparent)
       .scrollable(true)
